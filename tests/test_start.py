@@ -32,3 +32,13 @@ def test_main_runs_migration_before_uvicorn(monkeypatch):
         "port": 8765,
         "reload": False,
     }
+
+
+def test_environment_overrides_parameter_and_global(monkeypatch):
+    monkeypatch.setenv("MASTER_KEY", "from-environment")
+    assert start.resolve_setting("MASTER_KEY", "from-parameter", {"MASTER_KEY": "from-global"}) == "from-environment"
+
+
+def test_parameter_overrides_global_when_environment_is_missing(monkeypatch):
+    monkeypatch.delenv("MASTER_KEY", raising=False)
+    assert start.resolve_setting("MASTER_KEY", "from-parameter", {"MASTER_KEY": "from-global"}) == "from-parameter"

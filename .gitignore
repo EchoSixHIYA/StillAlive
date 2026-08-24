@@ -16,6 +16,7 @@ data/
 release-output/
 playwright-report/
 test-results/
+start_local.py
 
 # Internal specifications are kept locally and are never published.
 spec/

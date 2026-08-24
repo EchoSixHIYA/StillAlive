@@ -264,6 +264,8 @@ Still Alive **目前不实现 Heartbeat、Dead Man's Switch、所有者存活检
 
 不要直接使用示例中的 secret。
 
+`start.py` 的配置优先级为：环境变量 > 启动参数 > `start.py` 内的 `GLOBAL_CONFIG`。如果不希望把本地 secret 写进环境变量，可以创建不会提交到 Git 的 `start_local.py`，定义同名 `GLOBAL_CONFIG` 进行覆盖。
+
 ---
 
 ## Windows

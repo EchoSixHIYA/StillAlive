@@ -9,8 +9,40 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 import pyotp
-from pydantic import AnyHttpUrl, SecretStr, ValidationError, field_validator, model_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Lowest-priority, code-level configuration point. Keep real secrets in the
+# environment or in the ignored start_local.py file instead of committing them.
+GLOBAL_CONFIG: dict[str, object] = {
+    "APP_ENV": "development",
+    "RELEASE_RUNTIME_MODE": "strict",
+    "DATABASE_URL": "sqlite:///./data/app.db",
+    "MASTER_KEY": None,
+    "ANSWER_PEPPER": None,
+    "SESSION_SECRET": None,
+    "ADMIN_AUTH_SECRET": None,
+    "ADMIN_BOOTSTRAP_USERNAME": "admin",
+    "ADMIN_BOOTSTRAP_PASSWORD": None,
+    "ADMIN_BOOTSTRAP_TOTP_SECRET": None,
+    "PUBLIC_BASE_URL": "http://localhost:8000",
+    "VAULT_PATH": "./data/vault",
+    "RELEASE_PATH": "./data/releases",
+}
+
+
+def _global_value(name: str, fallback: object = None) -> object:
+    return GLOBAL_CONFIG.get(name, fallback)
+
+
+def _global_secret(name: str) -> SecretStr | None:
+    value = _global_value(name)
+    if value is None:
+        return None
+    if isinstance(value, SecretStr):
+        return value
+    return SecretStr(str(value))
 
 
 class Settings(BaseSettings):
@@ -27,19 +59,23 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_env: Literal["development", "test", "production"] = "development"
-    release_runtime_mode: Literal["strict", "source_fallback"] = "strict"
-    database_url: str = "sqlite:///./data/app.db"
-    master_key: SecretStr | None = None
-    answer_pepper: SecretStr | None = None
-    session_secret: SecretStr | None = None
-    admin_auth_secret: SecretStr | None = None
-    admin_bootstrap_username: str = "admin"
-    admin_bootstrap_password: SecretStr | None = None
-    admin_bootstrap_totp_secret: SecretStr | None = None
-    public_base_url: AnyHttpUrl = "http://localhost:8000"
-    vault_path: Path = Path("./data/vault")
-    release_path: Path = Path("./data/releases")
+    app_env: Literal["development", "test", "production"] = Field(
+        default_factory=lambda: _global_value("APP_ENV", "development")
+    )
+    release_runtime_mode: Literal["strict", "source_fallback"] = Field(
+        default_factory=lambda: _global_value("RELEASE_RUNTIME_MODE", "strict")
+    )
+    database_url: str = Field(default_factory=lambda: _global_value("DATABASE_URL", "sqlite:///./data/app.db"))
+    master_key: SecretStr | None = Field(default_factory=lambda: _global_secret("MASTER_KEY"))
+    answer_pepper: SecretStr | None = Field(default_factory=lambda: _global_secret("ANSWER_PEPPER"))
+    session_secret: SecretStr | None = Field(default_factory=lambda: _global_secret("SESSION_SECRET"))
+    admin_auth_secret: SecretStr | None = Field(default_factory=lambda: _global_secret("ADMIN_AUTH_SECRET"))
+    admin_bootstrap_username: str = Field(default_factory=lambda: _global_value("ADMIN_BOOTSTRAP_USERNAME", "admin"))
+    admin_bootstrap_password: SecretStr | None = Field(default_factory=lambda: _global_secret("ADMIN_BOOTSTRAP_PASSWORD"))
+    admin_bootstrap_totp_secret: SecretStr | None = Field(default_factory=lambda: _global_secret("ADMIN_BOOTSTRAP_TOTP_SECRET"))
+    public_base_url: AnyHttpUrl = Field(default_factory=lambda: _global_value("PUBLIC_BASE_URL", "http://localhost:8000"))
+    vault_path: Path = Field(default_factory=lambda: Path(str(_global_value("VAULT_PATH", "./data/vault"))))
+    release_path: Path = Field(default_factory=lambda: Path(str(_global_value("RELEASE_PATH", "./data/releases"))))
     admin_session_idle_minutes: int = 15
     admin_session_absolute_hours: int = 8
     download_grant_ttl_seconds: int = 600
@@ -163,4 +199,8 @@ def configuration_error_message(exc: ValidationError) -> str:
     for error in exc.errors():
         location = ".".join(str(part) for part in error.get("loc", ())) or "settings"
         messages.append(f"{location}: {error.get('msg', 'invalid value')}")
-    return "Configuration error: " + "; ".join(messages)
+    return (
+        "Configuration error: "
+        + "; ".join(messages)
+        + "; provide values via environment variables, start.py parameters, or GLOBAL_CONFIG"
+    )
