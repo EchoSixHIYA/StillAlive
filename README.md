@@ -274,31 +274,31 @@ Still Alive **目前不实现 Heartbeat、Dead Man's Switch、所有者存活检
 .\.venv\Scripts\pip.exe install -e ".[dev]"
 ```
 
-初始化 / 更新数据库：
+直接启动完整应用（自动执行数据库 migration，再启动 Uvicorn）：
 
 ```powershell
-.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe .\start.py
 ```
 
-启动：
+开发时需要自动重载可以加上 `--reload`：
 
 ```powershell
-.\.venv\Scripts\uvicorn.exe app.main:app --reload
+.\.venv\Scripts\python.exe .\start.py --reload
 ```
 
-或者：
+PowerShell 包装入口仍然可用，它会委托给同一个 Python 入口：
 
 ```powershell
 .\scripts\start.ps1
 ```
 
-`start.ps1` 会自动执行数据库 migration 后启动服务。
+`start.py` 会自动执行数据库 migration 后启动服务。
 
 如果需要修改端口：
 
 ```powershell
 $env:STILL_ALIVE_PORT="8080"
-.\scripts\start.ps1
+.\.venv\Scripts\python.exe .\start.py
 ```
 
 默认地址：
