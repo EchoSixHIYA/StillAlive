@@ -1,0 +1,15 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · 审计{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><h2>审计事件</h2><p class="muted">仅显示事件类型、目标和时间，不显示密码、TOTP 或其他秘密原文。</p></section>
+<section class="panel">
+  <form method="get" class="inline-form"><label>事件类型<input name="event_type" value="{{ filters.event_type }}" placeholder="verification.failed"></label><label>Target ID<input name="target" value="{{ filters.target }}"></label><label>Release ID<input name="release" value="{{ filters.release }}"></label><label>开始时间<input name="start" value="{{ filters.start }}" placeholder="2026-01-01T00:00:00"></label><label>结束时间<input name="end" value="{{ filters.end }}" placeholder="2026-12-31T23:59:59"></label><button class="button button-secondary" type="submit">筛选</button></form>
+  {% if events %}
+  <div class="table-wrap"><table><thead><tr><th>时间</th><th>事件</th><th>Actor</th><th>目标</th><th>Metadata</th></tr></thead><tbody>
+    {% for event in events %}<tr><td>{{ event.created_at }}</td><td><code>{{ event.event_type }}</code></td><td>{{ event.actor_type }}</td><td>{{ event.target_type }}</td><td><code>{{ event.metadata_json }}</code></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<p class="muted">暂无审计事件。</p>{% endif %}
+</section>
+{% endblock %}

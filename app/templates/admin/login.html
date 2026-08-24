@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Still Alive · 管理员登录{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', path='admin.css') }}">
+<section class="login-card" aria-labelledby="login-title">
+  <p class="eyebrow">Still Alive</p>
+  <h1 id="login-title">管理员登录</h1>
+  <p class="muted">需要密码和动态验证码才能进入管理后台。</p>
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  <form action="/admin/login" method="post" class="stacked-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>用户名<input name="username" autocomplete="username" required></label>
+    <label>密码<input name="password" type="password" autocomplete="current-password" required></label>
+    <label>动态验证码<input name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required></label>
+    <button type="submit" class="button">登录</button>
+  </form>
+</section>
+{% endblock %}
+

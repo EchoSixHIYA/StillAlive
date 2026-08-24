@@ -1,0 +1,2 @@
+"""Still Alive application package."""
+

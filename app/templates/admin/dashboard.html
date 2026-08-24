@@ -1,0 +1,30 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · 管理后台总览{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro">
+  <p class="muted">已登录管理员：{{ admin.username }}</p>
+  <h2>系统总览</h2>
+  <p class="muted">当前为 Phase 1 后台骨架。公共交付状态默认显示为可用，不依赖生命周期触发器。</p>
+</section>
+<div class="metric-grid">
+  <article class="metric-card"><span>Active Person</span><strong>{{ metrics.active_people }}</strong></article>
+  <article class="metric-card"><span>Active Question</span><strong>{{ metrics.active_questions }}</strong></article>
+  <article class="metric-card"><span>Identity Integrity</span><strong>{{ metrics.integrity_status }}</strong></article>
+  <article class="metric-card"><span>Blocking / Warning Pair</span><strong>{{ metrics.blocking_pairs }} / {{ metrics.warning_pairs }}</strong></article>
+  <article class="metric-card"><span>Confusion Cluster</span><strong>{{ metrics.clusters }}</strong></article>
+  <article class="metric-card"><span>Public Delivery</span><strong>{{ metrics.public_delivery }}</strong></article>
+  <article class="metric-card"><span>READY Release</span><strong>{{ metrics.ready_releases }}</strong></article>
+  <article class="metric-card"><span>最新 Release</span><strong>{{ metrics.latest_release }}</strong></article>
+</div>
+<section class="panel">
+  <div class="panel-heading"><h2>最近审计事件</h2><a href="/admin/audit">查看全部</a></div>
+  {% if latest_events %}
+  <ul class="event-list">
+    {% for event in latest_events %}<li><code>{{ event.event_type }}</code><time>{{ event.created_at }}</time></li>{% endfor %}
+  </ul>
+  {% else %}<p class="muted">暂无审计事件。</p>{% endif %}
+</section>
+{% endblock %}
+

@@ -1,0 +1,9 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · {{ section }}{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><h2>{{ section }}</h2><p class="muted">{{ message }}</p></section>
+<section class="panel"><p>此入口已纳入管理员认证边界，功能将在对应 Phase 实现。</p></section>
+{% endblock %}
+

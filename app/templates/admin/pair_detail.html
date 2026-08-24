@@ -1,0 +1,9 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · Pair 详情{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro page-actions"><div><p class="eyebrow">Collision Pair</p><h2>{{ person_a_name }} / {{ person_b_name }}</h2><p class="muted">A→B {{ "%.2f"|format(metric.confusion_a_to_b * 100) }}% · B→A {{ "%.2f"|format(metric.confusion_b_to_a * 100) }}%</p></div><a class="button" href="/admin/identity-integrity/wizard?pair_id={{ metric.id }}">解决此冲突</a></section>
+<section class="panel"><h2>为什么冲突</h2><ul>{% for reason in reasons %}<li>{{ reason }}</li>{% endfor %}</ul><p>Trait Similarity {{ "%.3f"|format(metric.trait_similarity) }}；共同覆盖问题 {{ metric.common_question_count }}；理论最大分离 {{ "%.3f"|format(metric.theoretical_max_score_separation) }}；Strong Discriminator {{ metric.strong_discriminator_count }}；Distinct Facet {{ metric.distinct_facet_count }}；风险 <strong>{{ metric.risk|upper }}</strong>。</p></section>
+<section class="panel"><h2>问题对比</h2><div class="table-wrap"><table><thead><tr><th>问题</th><th>隐私</th><th>A value</th><th>B value</th><th>差异</th></tr></thead><tbody>{% for item in question_views %}<tr><td>{{ item.text }}</td><td>{{ item.question.privacy_level }}</td><td>{{ item.a.value if item.a else '未填写' }}</td><td>{{ item.b.value if item.b else '未填写' }}</td><td>{{ item.difference if item.difference is not none else '缺失 Trait' }}</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

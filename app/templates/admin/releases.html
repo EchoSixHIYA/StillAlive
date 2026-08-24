@@ -1,0 +1,11 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · 封存版本{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><p class="eyebrow">Sealed Release</p><h2>封存版本</h2><p class="muted">Sealed Release 只用于恢复与长期保存，不控制线上 Public Delivery。</p><a class="button button-secondary" href="/admin/recovery-key">Recovery Key 管理</a></section>
+{% if error %}<section class="panel health-banner"><strong>{{ error }}</strong></section>{% endif %}
+<section class="panel"><div class="panel-heading"><h2>Gate Checklist</h2><span class="muted">Recovery Key：{% if recovery_record %}已配置{% else %}未配置{% endif %}</span></div><ul class="event-list">{% for gate in gates %}<li><span>{{ gate.label }} · {{ gate.detail }}</span><strong>{{ "PASS" if gate.passed else "FAIL" }}</strong></li>{% endfor %}</ul></section>
+<section class="panel"><h2>创建封存版本</h2><form method="post" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>版本号<input name="version" placeholder="2026.08.24-1" required pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,127}"></label><label>Recovery Key<input name="recovery_key" type="password" required autocomplete="off"></label><button class="button" type="submit">创建并验证 Sealed Release</button></form></section>
+<section class="panel"><h2>历史版本</h2>{% if releases %}<ul class="event-list">{% for release in releases %}<li><span><a href="/admin/releases/{{ release.id }}">{{ release.version }}</a> · {{ release.status }}</span><code>{{ release.manifest_sha256 or "未生成" }}</code></li>{% endfor %}</ul>{% else %}<p class="muted">暂无封存版本。</p>{% endif %}</section>
+{% endblock %}

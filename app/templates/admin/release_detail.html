@@ -1,0 +1,10 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · {{ release.version }}{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><p class="eyebrow">Sealed Release</p><h2>{{ release.version }}</h2><p class="muted">状态：{{ release.status }} · Integrity Snapshot：{{ release.integrity_snapshot_id or "无" }}</p></section>
+<section class="panel"><dl><dt>Manifest SHA-256</dt><dd><code>{{ release.manifest_sha256 or "未生成" }}</code></dd><dt>Archive</dt><dd><code>{{ release.archive_path or "未生成" }}</code></dd><dt>Recovery Key ID</dt><dd><code>{{ release.recovery_key_id or "未配置" }}</code></dd></dl></section>
+{% if release.status == "ready" %}<section class="panel"><h2>导出（需要 recent re-auth）</h2><form method="post" action="/admin/releases/{{ release.id }}/export" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>管理员密码<input type="password" name="password" required autocomplete="current-password"></label><label>TOTP<input name="totp" inputmode="numeric" required></label><button class="button" type="submit">下载封存包</button></form></section>{% endif %}
+{% if release.status not in ["revoked"] %}<section class="panel"><form method="post" action="/admin/releases/{{ release.id }}/revoke"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-secondary" type="submit">撤销此版本</button></form></section>{% endif %}
+{% endblock %}

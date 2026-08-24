@@ -1,0 +1,21 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · 问题编辑{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><h2>{% if question %}编辑问题{% else %}新建问题{% endif %}</h2><p class="muted">问题文本会在数据库中加密保存。L4 只能作为 Verification-only 数据。</p></section>
+<section class="panel form-panel">
+  <form action="{% if question %}/admin/questions/{{ question.id }}{% else %}/admin/questions{% endif %}" method="post" class="stacked-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>问题文本<textarea name="text" rows="3" maxlength="500" required>{{ text }}</textarea></label>
+    <label>隐私级别<select name="privacy_level"><option value="L0_PUBLIC"{% if privacy_level == "L0_PUBLIC" %} selected{% endif %}>L0_PUBLIC</option><option value="L1_RELATION"{% if privacy_level == "L1_RELATION" %} selected{% endif %}>L1_RELATION</option><option value="L2_PRIVATE"{% if privacy_level == "L2_PRIVATE" %} selected{% endif %}>L2_PRIVATE</option><option value="L3_SENSITIVE"{% if privacy_level == "L3_SENSITIVE" %} selected{% endif %}>L3_SENSITIVE</option><option value="L4_VERIFICATION_ONLY"{% if privacy_level == "L4_VERIFICATION_ONLY" %} selected{% endif %}>L4_VERIFICATION_ONLY</option></select></label>
+    <label>答案刻度<select name="answer_scale"><option value="five_point"{% if answer_scale == "five_point" %} selected{% endif %}>five_point</option><option value="boolean"{% if answer_scale == "boolean" %} selected{% endif %}>boolean</option></select></label>
+    <label>权重<input name="weight" type="number" min="0.01" max="100" step="0.01" value="{{ weight }}" required></label>
+    <label>Facet tag<input name="facet_tag" maxlength="64" value="{{ facet_tag }}" placeholder="work / game / timeline"></label>
+    <label class="checkbox-label"><input name="active" type="checkbox" value="on"{% if active %} checked{% endif %}> Active Discovery Question</label>
+    <p class="muted">选择 L4_VERIFICATION_ONLY 时必须取消 Active；服务端也会再次校验。</p>
+    <div class="form-actions"><button class="button" type="submit">保存问题</button><a href="/admin/questions">取消</a></div>
+  </form>
+</section>
+{% endblock %}
+

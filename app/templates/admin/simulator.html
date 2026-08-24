@@ -1,0 +1,9 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · Simulator{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><h2>Identity Simulator</h2><p class="muted">模拟只运行纯 Python Identity Engine，不创建 VerificationAttempt 或 Grant。</p></section>
+<section class="panel"><form action="/admin/simulator" method="post" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>目标 Person<select name="target_person_id" required>{% for person_id, name in people %}<option value="{{ person_id }}">{{ name }}</option>{% endfor %}</select></label><label>Profile<select name="profile"><option value="EXACT">EXACT</option><option value="HUMAN_NOISE">HUMAN_NOISE</option></select></label><label>Seed<input name="seed" type="number" value="0"></label><button class="button" type="submit">运行模拟</button></form></section>
+{% if result %}<section class="panel"><h2>结果</h2><div class="metric-grid"><article class="metric-card"><span>Status</span><strong>{{ result.status }}</strong></article><article class="metric-card"><span>Top1</span><strong>{{ result.top_person_id or '—' }}</strong></article><article class="metric-card"><span>Guess</span><strong>{{ result.guessed_person_id or 'unable' }}</strong></article><article class="metric-card"><span>题数 / Margin</span><strong>{{ result.question_count }} / {{ "%.3f"|format(result.score_margin) }}</strong></article></div><p class="muted">algorithm={{ result.algorithm_version }} · noise={{ result.noise_profile_version }} · seed={{ result.seed }}</p>{% if result.profile == 'HUMAN_NOISE' %}<p class="muted">HUMAN_NOISE 轨迹可能包含 UNKNOWN（0.0）或相邻一级答案。</p>{% endif %}{% if result.answers %}<h3>回答轨迹</h3><ul>{% for question_id, value in result.answers %}<li><code>{{ question_id }}</code> = {{ value }}</li>{% endfor %}</ul>{% endif %}</section>{% endif %}
+{% endblock %}

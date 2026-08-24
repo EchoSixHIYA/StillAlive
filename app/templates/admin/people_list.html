@@ -1,0 +1,15 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · 人物{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro page-actions"><div><h2>人物管理</h2><p class="muted">显示名称只在管理员后台解密展示，内部 URL 使用随机 UUID。</p></div><a class="button" href="/admin/people/new">新建人物</a></section>
+<section class="panel">
+  {% if people %}
+  <div class="table-wrap"><table><thead><tr><th>人物</th><th>状态</th><th>Identity Health</th><th>Verification</th><th>Assets</th><th></th></tr></thead><tbody>
+    {% for item in people %}<tr><td>{{ item.display_name }}</td><td>{{ item.person.status }}</td><td>Identity model incomplete</td><td>Phase 6 配置</td><td>Phase 7 配置</td><td><a href="/admin/people/{{ item.person.id }}">查看</a></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<p class="muted">暂无人物。请先创建一个人物并补充识别答案。</p>{% endif %}
+</section>
+{% endblock %}
+

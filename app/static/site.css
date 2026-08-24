@@ -1,0 +1,21 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #f4f1ea;
+  color: #1d2521;
+}
+
+body { margin: 0; }
+.page-shell { max-width: 760px; margin: 0 auto; padding: 12vh 24px; }
+.hero, .notice { background: #fffdf8; border: 1px solid #d8d1c3; border-radius: 18px; padding: 32px; }
+.notice { margin-top: 18px; }
+.eyebrow { letter-spacing: .14em; text-transform: uppercase; color: #8a5b32; }
+h1 { max-width: 620px; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.05; }
+.lede { color: #53605a; line-height: 1.7; }
+button, .button-link { border: 0; border-radius: 999px; padding: 12px 18px; background: #526b5e; color: #fff; font: inherit; text-decoration: none; cursor: pointer; }
+.discovery-hero { display: grid; gap: 18px; }
+.question-text { font-size: clamp(1.4rem, 3vw, 2.2rem); line-height: 1.35; }
+.answer-form { display: flex; flex-wrap: wrap; gap: 10px; }
+.answer-form form { margin: 0; }
+.asset-list { display: grid; gap: 12px; list-style: none; padding: 0; }
+.asset-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid #d8d1c3; padding: 12px 0; }

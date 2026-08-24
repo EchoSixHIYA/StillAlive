@@ -1,0 +1,60 @@
+.admin-layout { max-width: 1100px; margin: 0 auto; }
+.admin-header { display: flex; justify-content: space-between; align-items: start; gap: 24px; margin-bottom: 22px; }
+.page-actions { display: flex; justify-content: space-between; align-items: start; gap: 20px; }
+.admin-header h1, .page-intro h2 { margin: 0; }
+.admin-nav { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #d8d1c3; padding-bottom: 16px; margin-bottom: 28px; }
+.admin-nav a, .panel-heading a { color: #8a5b32; text-decoration: none; }
+.page-intro { margin-bottom: 24px; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.metric-card, .panel, .login-card { background: #fffdf8; border: 1px solid #d8d1c3; border-radius: 14px; padding: 20px; }
+.metric-card { display: grid; gap: 10px; }
+.metric-card span { color: #53605a; font-size: .9rem; }
+.metric-card strong { font-size: 1.45rem; }
+.panel { margin-top: 20px; }
+.panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.panel-heading h2 { margin-top: 0; }
+.event-list { list-style: none; padding: 0; margin: 0; }
+.event-list li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #ece6da; }
+.event-list time { color: #6b756f; font-size: .9rem; }
+.login-card { max-width: 470px; margin: 8vh auto; }
+.stacked-form { display: grid; gap: 16px; margin-top: 24px; }
+.stacked-form label { display: grid; gap: 7px; font-weight: 600; }
+input, select, textarea { border: 1px solid #b9b0a0; border-radius: 8px; padding: 11px 12px; font: inherit; background: #fff; }
+textarea { resize: vertical; }
+.form-panel { max-width: 760px; }
+.form-actions { display: flex; align-items: center; gap: 16px; }
+.checkbox-label { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 8px !important; }
+.checkbox-label input { width: auto; }
+.health-banner { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; background: #edf5ed; border-color: #b8d0b8; }
+.inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.traits-form { display: grid; gap: 14px; }
+.trait-row { border: 1px solid #e1dace; border-radius: 10px; padding: 14px; }
+.trait-row legend { padding: 0 6px; font-weight: 600; }
+.trait-row small { color: #6b756f; font-weight: 400; }
+.trait-fields { display: grid; grid-template-columns: 150px 150px 1fr; gap: 12px; }
+.trait-fields label { display: grid; gap: 6px; color: #53605a; font-size: .9rem; }
+.trait-fields input { width: 100%; box-sizing: border-box; }
+.wizard-row { display: grid; grid-template-columns: minmax(220px, 1fr) 90px 90px 90px 90px auto; gap: 10px; align-items: end; border-bottom: 1px solid #ece6da; padding: 14px 0; }
+.wizard-row > div { display: grid; gap: 5px; }
+.wizard-row small { color: #6b756f; }
+.wizard-row label { display: grid; gap: 5px; color: #53605a; font-size: .85rem; }
+.wizard-row input { width: 100%; box-sizing: border-box; }
+.risk-pass { color: #3e7550; }
+.risk-warning { color: #9a6a21; }
+.risk-blocking { color: #a1432c; font-weight: 700; }
+.button { border: 0; border-radius: 999px; padding: 11px 18px; background: #526b5e; color: #fff; font: inherit; cursor: pointer; }
+.button-secondary { background: #e7e0d4; color: #36443c; }
+.form-error { border-left: 4px solid #a1432c; background: #f8e5dc; padding: 10px 12px; }
+.preview-card { display: grid; gap: 7px; padding: 14px; border: 1px dashed #b9b0a0; border-radius: 10px; background: #f7f2e9; }
+.muted { color: #53605a; line-height: 1.6; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 11px 8px; border-bottom: 1px solid #ece6da; vertical-align: top; }
+code { overflow-wrap: anywhere; }
+
+@media (max-width: 700px) {
+  .trait-fields { grid-template-columns: 1fr 1fr; }
+  .trait-fields label:last-child { grid-column: 1 / -1; }
+  .wizard-row { grid-template-columns: 1fr 1fr; }
+  .wizard-row > div, .wizard-row button { grid-column: 1 / -1; }
+}

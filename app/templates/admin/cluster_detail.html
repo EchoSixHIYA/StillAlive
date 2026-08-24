@@ -1,0 +1,10 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · Cluster 详情{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><p class="eyebrow">Confusion Cluster</p><h2>{{ cluster.cluster_id }} · {{ cluster.risk|upper }}</h2><p class="muted">worst pair：{{ cluster.worst_pair }}</p></section>
+<section class="panel"><h2>成员</h2><ul class="event-list">{% for person_id, name in members %}<li><span>{{ name }}</span><code>{{ person_id }}</code></li>{% endfor %}</ul></section>
+<section class="panel"><h2>风险 Pair</h2><div class="table-wrap"><table><thead><tr><th>A</th><th>B</th><th>Risk</th><th>A→B</th><th>B→A</th></tr></thead><tbody>{% for pair in pairs %}<tr><td>{{ names.get(pair.person_a_id, pair.person_a_id) }}</td><td>{{ names.get(pair.person_b_id, pair.person_b_id) }}</td><td>{{ pair.risk|upper }}</td><td>{{ "%.2f"|format(pair.confusion_a_to_b * 100) }}%</td><td>{{ "%.2f"|format(pair.confusion_b_to_a * 100) }}%</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel"><h2>Cluster Split Utility</h2><div class="table-wrap"><table><thead><tr><th>问题</th><th>分组数</th><th>覆盖</th></tr></thead><tbody>{% for item in split_utility[:10] %}<tr><td>{{ item.text }}</td><td>{{ item.groups }}</td><td>{{ item.coverage }}</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

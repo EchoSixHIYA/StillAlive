@@ -1,0 +1,9 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · Recovery Key{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><p class="eyebrow">Recovery</p><h2>Recovery Key</h2><p class="muted">系统只保存不可逆 verification digest。生成或轮换后，原文只在本页显示一次，请使用独立离线介质保存。</p></section>
+{% if recovery_key %}<section class="panel"><strong>请立即离线保存此 Recovery Key：</strong><pre>{{ recovery_key }}</pre><p class="muted">它不会写入数据库、Audit、日志或封存包。</p></section>{% endif %}
+<section class="panel"><p>当前配置：{% if record %}<code>{{ record.key_id }}</code>{% else %}未配置{% endif %}</p><form method="post" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>Recovery Key（留空自动生成）<input name="recovery_key" minlength="32" autocomplete="off"></label><label>确认 Recovery Key<input name="confirm_recovery_key" minlength="32" autocomplete="off"></label><button class="button" type="submit">创建 / 轮换 Recovery Key</button></form></section>
+{% endblock %}

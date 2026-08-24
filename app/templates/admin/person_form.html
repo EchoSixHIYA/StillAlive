@@ -1,0 +1,16 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · 新建人物{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro"><h2>新建人物</h2><p class="muted">人物显示名称会在数据库中加密保存。</p></section>
+<section class="panel form-panel">
+  <form action="/admin/people" method="post" class="stacked-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>显示名称<input name="display_name" maxlength="200" required value="{{ display_name }}"></label>
+    <label>初始状态<select name="status"><option value="active"{% if status == "active" %} selected{% endif %}>active</option><option value="disabled"{% if status == "disabled" %} selected{% endif %}>disabled</option><option value="archived"{% if status == "archived" %} selected{% endif %}>archived</option></select></label>
+    <div class="form-actions"><button class="button" type="submit">保存人物</button><a href="/admin/people">取消</a></div>
+  </form>
+</section>
+{% endblock %}
+

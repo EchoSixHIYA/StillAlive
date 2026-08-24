@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_tmp/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.env
+.env.*
+!.env.example
+
+data/
+release-output/
+playwright-report/
+test-results/
+
+# Internal specifications are kept locally and are never published.
+spec/
+
+.idea/
+*.sqlite3
+*.db
+*.egg-info/

@@ -1,0 +1,15 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · 问题{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro page-actions"><div><h2>Discovery Question</h2><p class="muted">L4_VERIFICATION_ONLY 可以保存，但不能作为 Active Discovery Question。</p></div><a class="button" href="/admin/questions/new">新建问题</a></section>
+<section class="panel">
+  {% if questions %}
+  <div class="table-wrap"><table><thead><tr><th>问题</th><th>隐私级别</th><th>权重</th><th>Facet</th><th>覆盖人数</th><th>状态</th><th></th></tr></thead><tbody>
+    {% for item in questions %}<tr><td>{{ item.text }}</td><td>{{ item.question.privacy_level }}</td><td>{{ item.question.weight }}</td><td>{{ item.question.facet_tag or '—' }}</td><td>{{ item.coverage }}</td><td>{% if item.question.active %}active{% else %}inactive{% endif %}</td><td><a href="/admin/questions/{{ item.question.id }}/edit">编辑</a></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<p class="muted">暂无问题。</p>{% endif %}
+</section>
+{% endblock %}
+
