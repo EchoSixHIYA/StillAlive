@@ -439,6 +439,12 @@ Sealed Recovery
 
 详细工程状态、验收结果、当前已知限制和工程规范属于内部资料，不随公开仓库发布。
 
+# 许可证
+
+本项目采用 GNU Affero General Public License v3.0 或更高版本（`AGPL-3.0-or-later`）。完整条款见 [LICENSE](LICENSE)。
+
+该许可证允许使用、复制和修改，但对通过网络提供服务的修改版本有相应的源码提供义务。
+
 ---
 
 # 这不是什么
