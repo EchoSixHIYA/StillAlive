@@ -3,20 +3,87 @@
 {% block admin_title %}Still Alive · {{ display_name }}{% endblock %}
 
 {% block admin_content %}
-<section class="page-intro page-actions"><div><p class="eyebrow">人物档案</p><h2>{{ display_name }}</h2><p class="muted">内部 ID：<code>{{ person.id }}</code></p></div><div class="form-actions"><a class="button button-secondary" href="/admin/people/{{ person.id }}/edit">编辑人物</a><a href="/admin/people">返回人物列表</a></div></section>
-<section class="panel {% if missing_count %}setup-banner{% else %}health-banner{% endif %}"><strong>{% if missing_count %}身份模型还未补齐{% else %}身份答案已补齐{% endif %}</strong><span>待填写识别答案：{{ missing_count }} 项。保存后身份完整性会标记为待重算。</span><span class="compatibility-label">Identity model incomplete</span></section>
-{% if closest_person %}<section class="panel"><strong>当前最相近人物：{{ closest_person.name }}</strong><span class="muted">风险 Pair：A→B {{ "%.2f"|format(closest_person.metric.confusion_a_to_b * 100) }}% / B→A {{ "%.2f"|format(closest_person.metric.confusion_b_to_a * 100) }}%</span><a class="button button-secondary" href="/admin/identity-integrity/wizard?pair_id={{ closest_person.metric.id }}">开始建立身份模型</a></section>{% else %}<section class="panel"><strong>尚无最相近人物</strong><span class="muted">Identity Integrity 计算后会显示当前最需要区分的人物。</span><a class="button button-secondary" href="/admin/identity-integrity/wizard">开始建立身份模型</a></section>{% endif %}
-<section class="panel"><div class="panel-heading"><h2>人物状态</h2><a href="/admin/people/{{ person.id }}/edit">编辑名称和状态</a></div><form action="/admin/people/{{ person.id }}/status" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="status"><option value="active"{% if person.status == "active" %} selected{% endif %}>启用</option><option value="disabled"{% if person.status == "disabled" %} selected{% endif %}>停用</option><option value="archived"{% if person.status == "archived" %} selected{% endif %}>归档</option></select><button class="button button-secondary" type="submit">更新状态</button></form></section>
-<section class="panel"><div class="panel-heading"><h2>识别答案</h2><span class="muted">Trait value -1.0 到 1.0，confidence 0 到 1.0</span></div>
+<section class="page-intro page-actions">
+  <div><p class="eyebrow">人物档案</p><h2>{{ display_name }}</h2><p class="muted">内部 ID：<code>{{ person.id }}</code></p></div>
+  <div class="form-actions"><a class="button button-secondary" href="/admin/people/{{ person.id }}/edit">编辑人物</a><a href="/admin/people">返回人物列表</a></div>
+</section>
+
+<section class="panel {% if missing_count %}setup-banner{% else %}health-banner{% endif %}">
+  <strong>{% if missing_count %}身份模型还未补齐{% else %}身份答案已补齐{% endif %}</strong>
+  <span>待填写识别答案：{{ missing_count }} 项。保存后身份完整性会标记为待重算。</span>
+  <span class="compatibility-label">Identity model incomplete</span>
+</section>
+
+{% if closest_person %}
+<section class="panel"><strong>当前最相近人物：{{ closest_person.name }}</strong><span class="muted">风险 Pair：A→B {{ "%.2f"|format(closest_person.metric.confusion_a_to_b * 100) }}% / B→A {{ "%.2f"|format(closest_person.metric.confusion_b_to_a * 100) }}%</span><a class="button button-secondary" href="/admin/identity-integrity/wizard?pair_id={{ closest_person.metric.id }}">开始建立身份模型</a></section>
+{% else %}
+<section class="panel"><strong>尚无最相近人物</strong><span class="muted">身份完整性计算后会显示当前最需要区分的人物。</span><a class="button button-secondary" href="/admin/identity-integrity/wizard">开始建立身份模型</a></section>
+{% endif %}
+
+<section class="panel" id="lifecycle">
+  <div class="panel-heading"><h2>交付与人物状态</h2><a href="/admin/people/{{ person.id }}/edit">编辑名称和状态</a></div>
+  <p class="muted">这三个动作含义不同：撤销交付会立即停止公开识别和下载但保留资料；归档是可恢复的整理状态；永久删除不可恢复。</p>
+  <div class="lifecycle-actions">
+    {% if person.delivery_enabled %}
+    <form action="/admin/people/{{ person.id }}/revoke-delivery" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-warning" type="submit">撤销交付</button><small>停止现有会话和授权，保留内容</small></form>
+    {% else %}
+    <form action="/admin/people/{{ person.id }}/restore-delivery" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button" type="submit">恢复交付</button><small>重新允许公开识别和领取</small></form>
+    {% endif %}
+    <form action="/admin/people/{{ person.id }}/status" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="status" value="archived"><button class="button button-secondary" type="submit">归档人物</button><small>隐藏于日常识别，可在后台恢复</small></form>
+  </div>
+  <p class="status-line">当前人物状态：<strong>{{ {"active": "启用", "disabled": "停用", "archived": "已归档"}.get(person.status, person.status) }}</strong> · 交付：<strong>{{ "可交付" if person.delivery_enabled else "已撤销" }}</strong></p>
+  <details class="danger-zone"><summary>永久删除人物（不可恢复）</summary><p>将删除人物、识别答案、专属验证、下载授权、交付配置和遗产内容密文文件；审计记录只保留“已执行删除”事件，不保留信件原文或答案。</p><form action="/admin/people/{{ person.id }}/delete" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>请输入“永久删除”<input name="confirm_text" required autocomplete="off" placeholder="永久删除"></label><button class="button button-danger" type="submit">永久删除人物</button></form></details>
+</section>
+
+<section class="panel" id="traits">
+  <div class="panel-heading"><h2>识别答案</h2><span class="muted">普通模式：用自然语言选择，不需要理解数字字段</span></div>
+  <p class="muted">回答“这个问题对朋友来说是什么答案”，再说明你有多确定。私密备注只给管理员看，不会交付给朋友。</p>
   {% if question_views %}
   <form action="/admin/people/{{ person.id }}/traits" method="post" class="traits-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% for item in question_views %}
-    <fieldset class="trait-row"{% if item.question.privacy_level == "L4_VERIFICATION_ONLY" %} disabled{% endif %}><legend>{{ item.text }} <small>{{ item.question.privacy_level }} · weight {{ item.question.weight }}</small></legend><div class="trait-fields"><label>value<input name="value_{{ item.question.id }}" type="number" min="-1" max="1" step="0.5" value="{{ item.answer.value if item.answer else 0 }}"></label><label>confidence<input name="confidence_{{ item.question.id }}" type="number" min="0" max="1" step="0.05" value="{{ item.answer.confidence if item.answer else 0 }}"></label><label>source note<input name="source_note_{{ item.question.id }}" value="{{ item.note or '' }}" maxlength="1000"></label></div></fieldset>
+    <fieldset class="trait-row"{% if item.question.privacy_level == "L4_VERIFICATION_ONLY" %} disabled{% endif %}>
+      <legend>{{ item.text }} <small>{{ item.question.privacy_level }} · 权重 {{ item.question.weight }}</small></legend>
+      <div class="trait-choice-group"><span class="field-label">这个答案是什么？</span><div class="choice-grid">
+        {% for choice, label in [("yes", "是"), ("probably_yes", "大概是"), ("unknown", "不知道"), ("probably_no", "大概不是"), ("no", "不是")] %}
+        <label class="choice-card"><input type="radio" name="answer_choice_{{ item.question.id }}" value="{{ choice }}"{% if (not item.answer and choice == "unknown") or (item.answer and ((choice == "yes" and item.answer.value == 1.0) or (choice == "probably_yes" and item.answer.value == 0.5) or (choice == "unknown" and item.answer.value == 0.0) or (choice == "probably_no" and item.answer.value == -0.5) or (choice == "no" and item.answer.value == -1.0))) %} checked{% endif %}>{{ label }}</label>
+        {% endfor %}
+      </div></div>
+      <div class="trait-choice-group"><span class="field-label">你有多确定？</span><div class="choice-grid confidence-grid">
+        {% for level, label in [("sure", "我很确定"), ("likely", "一般确定"), ("unsure", "不太确定")] %}
+        <label class="choice-card"><input type="radio" name="confidence_level_{{ item.question.id }}" value="{{ level }}"{% if (not item.answer and level == "unsure") or (item.answer and ((level == "sure" and item.answer.confidence >= 0.9) or (level == "likely" and item.answer.confidence >= 0.7 and item.answer.confidence < 0.9) or (level == "unsure" and item.answer.confidence < 0.7))) %} checked{% endif %}>{{ label }}</label>
+        {% endfor %}
+      </div></div>
+      <label class="note-field">私密备注（可选）<input name="source_note_{{ item.question.id }}" value="{{ item.note or '' }}" maxlength="1000" placeholder="例如：来自一次共同经历"></label>
+      <details class="advanced-fields"><summary>高级设置（数字字段）</summary><div class="trait-fields"><label>value<input name="value_{{ item.question.id }}" type="number" min="-1" max="1" step="0.5" value="{{ item.answer.value if item.answer else 0 }}"></label><label>confidence<input name="confidence_{{ item.question.id }}" type="number" min="0" max="1" step="0.05" value="{{ item.answer.confidence if item.answer else 0 }}"></label></div></details>
+    </fieldset>
     {% endfor %}
     <button class="button" type="submit">保存识别答案</button>
   </form>
-  {% else %}<p class="muted">暂无问题，请先在问题管理中创建 Discovery Question。</p>{% endif %}
+  {% else %}<p class="muted">暂无问题。请先<a href="/admin/questions/new">创建第一道识别问题</a>，系统需要它来区分不同人物。</p>{% endif %}
 </section>
-<section class="panel" id="verification"><div class="panel-heading"><h2>专属验证问题 / Verification Challenge</h2><span class="muted">答案只保存 HMAC digest，不保存原文。</span></div>{% if challenge_views %}<ul class="event-list">{% for item in challenge_views %}<li><span>{{ item.prompt }} · 已配置 {{ item.answer_count }} 个可接受答案{% if not item.challenge.active %} · 已停用{% endif %}</span><form action="/admin/people/{{ person.id }}/challenges/{{ item.challenge.id }}/status" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="active" value="{{ 'false' if item.challenge.active else 'true' }}"><button class="button button-secondary" type="submit">{{ '停用' if item.challenge.active else '启用' }}</button></form></li>{% endfor %}</ul>{% else %}<p class="muted">尚未配置专属验证问题。</p>{% endif %}<form action="/admin/people/{{ person.id }}/challenges" method="post" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>验证提示<textarea name="prompt" rows="2" maxlength="500" required></textarea></label><label>可接受答案（每行一个，原文不会显示或入库）<textarea name="answers" rows="4" required></textarea></label><button class="button" type="submit">保存新的验证问题（保存 Verification Challenge）</button></form></section>
-<section class="panel" id="assets"><div class="panel-heading"><h2>遗产内容 / Assets</h2><span class="muted">上传后立即写入加密 Vault；仅验证成功且内容启用时可下载。</span></div>{% if asset_views %}<ul class="event-list">{% for item in asset_views %}<li><div><strong>{{ item.display_name }}</strong><form action="/admin/people/{{ person.id }}/assets/{{ item.asset.id }}/rename" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input name="display_name" value="{{ item.display_name }}" maxlength="200" aria-label="遗产内容名称"><button class="button button-secondary" type="submit">保存名称</button></form><small>{{ item.asset.mime_type }} · {{ item.asset.size_plain }} bytes{% if not item.asset.active %} · 已停用{% endif %}</small></div><form action="/admin/people/{{ person.id }}/assets/{{ item.asset.id }}/status" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="active" value="{{ 'false' if item.asset.active else 'true' }}"><button class="button button-secondary" type="submit">{{ '停用' if item.asset.active else '启用' }}</button></form></li>{% endfor %}</ul>{% else %}<p class="muted">尚未上传遗产内容。</p>{% endif %}<form action="/admin/people/{{ person.id }}/assets" method="post" enctype="multipart/form-data" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>文件<input type="file" name="file" required></label><label>内容名称（可选）<input name="display_name" maxlength="200"></label><button class="button" type="submit">上传加密遗产内容（上传加密 Asset）</button></form></section>
+
+<section class="panel" id="delivery">
+  <div class="panel-heading"><h2>前台表达与交付内容</h2><a class="button button-secondary" href="/admin/people/{{ person.id }}/preview">朋友手机视角预览</a></div>
+  <p class="muted">这里决定朋友验证成功后看到的样子，不改变识别和安全规则。封面、开场文案和署名会加密保存，验证前不会出现在前台。</p>
+  <form action="/admin/people/{{ person.id }}/delivery-profile" method="post" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>主题<select name="theme">{% for value, label in delivery_themes.items() %}<option value="{{ value }}"{% if delivery_values.theme == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>内容类型<select name="content_type">{% for value, label in delivery_content_types.items() %}<option value="{{ value }}"{% if delivery_values.content_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>封面标题<input name="cover_title" value="{{ delivery_values.cover_title }}" maxlength="200" placeholder="例如：给你的信"></label>
+    <label>开场文案<textarea name="opening" rows="4" maxlength="2000" placeholder="朋友验证成功后先看到的一句话">{{ delivery_values.opening }}</textarea></label>
+    <label>署名<input name="signature" value="{{ delivery_values.signature }}" maxlength="200" placeholder="例如：永远记得你的我"></label>
+    <button class="button" type="submit">保存前台表达</button>
+  </form>
+</section>
+
+<section class="panel" id="verification">
+  <div class="panel-heading"><h2>专属验证问题</h2><span class="muted">答案只保存加密摘要，不保存原文。</span></div>
+  {% if challenge_views %}<ul class="event-list">{% for item in challenge_views %}<li><div><span>{{ item.prompt }} · 已配置 {{ item.answer_count }} 个可接受答案{% if not item.challenge.active %} · 已停用{% endif %}</span><div class="inline-form"><form action="/admin/people/{{ person.id }}/challenges/{{ item.challenge.id }}/status" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="active" value="{{ 'false' if item.challenge.active else 'true' }}"><button class="button button-secondary" type="submit">{{ '停用' if item.challenge.active else '启用' }}</button></form><details class="inline-danger"><summary>永久删除</summary><form action="/admin/people/{{ person.id }}/challenges/{{ item.challenge.id }}/delete" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input name="confirm_text" required placeholder="输入：永久删除" aria-label="验证问题删除确认"><button class="button button-danger" type="submit">确认删除</button></form></details></div></div></li>{% endfor %}</ul>{% else %}<p class="muted">尚未配置专属验证问题。</p>{% endif %}
+  <details class="create-disclosure"><summary>新增一个专属验证问题</summary><form action="/admin/people/{{ person.id }}/challenges" method="post" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>验证提示<textarea name="prompt" rows="2" maxlength="500" required></textarea></label><label>可接受答案（每行一个，原文不会显示或入库）<textarea name="answers" rows="4" required></textarea></label><button class="button" type="submit">保存新的验证问题（保存 Verification Challenge）</button></form></details>
+</section>
+
+<section class="panel" id="assets">
+  <div class="panel-heading"><h2>遗产内容</h2><span class="muted">朋友验证成功后领取的信件、照片或文件；上传后立即写入加密 Vault。</span></div>
+  {% if asset_views %}<ul class="event-list">{% for item in asset_views %}<li><div><strong>{{ item.display_name }}</strong><form action="/admin/people/{{ person.id }}/assets/{{ item.asset.id }}/rename" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input name="display_name" value="{{ item.display_name }}" maxlength="200" aria-label="遗产内容名称"><button class="button button-secondary" type="submit">保存名称</button></form><small>{{ item.asset.mime_type }} · {{ item.asset.size_plain }} bytes{% if not item.asset.active %} · 已撤销交付{% endif %}</small></div><div class="inline-form"><form action="/admin/people/{{ person.id }}/assets/{{ item.asset.id }}/status" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="active" value="{{ 'false' if item.asset.active else 'true' }}"><button class="button button-secondary" type="submit">{{ '撤销交付' if item.asset.active else '恢复交付' }}</button></form><details class="inline-danger"><summary>永久删除</summary><form action="/admin/people/{{ person.id }}/assets/{{ item.asset.id }}/delete" method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input name="confirm_text" required placeholder="输入：永久删除" aria-label="遗产内容删除确认"><button class="button button-danger" type="submit">确认删除</button></form></details></div></li>{% endfor %}</ul>{% else %}<p class="muted">尚未上传遗产内容。</p>{% endif %}
+  <details class="create-disclosure"><summary>上传一份遗产内容</summary><form action="/admin/people/{{ person.id }}/assets" method="post" enctype="multipart/form-data" class="stacked-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>文件<input type="file" name="file" required></label><label>内容名称（可选）<input name="display_name" maxlength="200"></label><button class="button" type="submit">上传加密遗产内容（上传加密 Asset）</button></form></details>
+</section>
 {% endblock %}

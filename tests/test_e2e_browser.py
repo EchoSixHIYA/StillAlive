@@ -126,10 +126,10 @@ def _fill_same_traits(page: Page, base_url: str, person_id: str, value: str = "1
     page.goto(f"{base_url}/admin/people/{person_id}")
     traits = page.locator(f'form[action="/admin/people/{person_id}/traits"]')
     expect(traits).to_be_visible()
-    for field in traits.locator('input[name^="value_"]').all():
-        field.fill(value)
-    for field in traits.locator('input[name^="confidence_"]').all():
-        field.fill("1")
+    for field in traits.locator('input[name^="answer_choice_"][value="yes"]').all():
+        field.check()
+    for field in traits.locator('input[name^="confidence_level_"][value="sure"]').all():
+        field.check()
     traits.get_by_role("button", name="保存识别答案").click()
     expect(page).to_have_url(f"{base_url}/admin/people/{person_id}")
 
@@ -167,6 +167,7 @@ def test_spec100_browser_authoring_to_download(page: Page, e2e_server: str) -> N
     expect(page.locator("body")).not_to_contain_text("仍需继续")
 
     page.goto(f"{base_url}/admin/people/{person_a}")
+    page.locator("#verification details.create-disclosure summary").click()
     challenge = page.locator(f'form[action="/admin/people/{person_a}/challenges"]')
     challenge.locator('textarea[name="prompt"]').fill("浏览器验收验证问题？")
     challenge.locator('textarea[name="answers"]').fill(CHALLENGE_ANSWER)
@@ -174,6 +175,7 @@ def test_spec100_browser_authoring_to_download(page: Page, e2e_server: str) -> N
     expect(page).to_have_url(re.compile(rf"{re.escape(base_url)}/admin/people/{re.escape(person_a)}(?:#.*)?$"))
     expect(page.locator("body")).to_contain_text("浏览器验收验证问题？")
 
+    page.locator("#assets details.create-disclosure summary").click()
     asset = page.locator(f'form[action="/admin/people/{person_a}/assets"]')
     asset.locator('input[type="file"]').set_input_files({"name": "browser-fixture.txt", "mimeType": "text/plain", "buffer": b"browser fixture payload"})
     asset.locator('input[name="display_name"]').fill("browser-fixture.txt")
@@ -204,7 +206,7 @@ def test_spec100_browser_authoring_to_download(page: Page, e2e_server: str) -> N
 
     page.locator('input[name="answer"]').fill(CHALLENGE_ANSWER)
     page.get_by_role("button", name="提交验证").click()
-    expect(page.locator("body")).to_contain_text("身份验证通过")
+    expect(page.locator("body")).to_contain_text("你的内容已解锁")
     with page.expect_download() as download_info:
         page.locator(f'form[action*="/play/"][action*="/assets/"] button').click()
     download = download_info.value

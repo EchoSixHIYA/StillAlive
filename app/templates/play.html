@@ -1,40 +1,31 @@
 {% extends "base.html" %}
 
-{% block title %}Still Alive · 身份识别{% endblock %}
+{% block title %}Still Alive · {% if state == 'VERIFIED' %}内容已解锁{% else %}身份识别{% endif %}{% endblock %}
 
 {% block content %}
-<section class="hero discovery-hero" id="discovery-state" data-session-id="{{ session_id }}" aria-labelledby="play-title">
+{% set delivery_theme = payload.theme if state == 'VERIFIED' else 'quiet' %}
+<section class="hero discovery-hero delivery-theme-{{ delivery_theme }}" id="discovery-state" data-session-id="{{ session_id }}" aria-labelledby="play-title">
   <p class="eyebrow">Still Alive · Discovery</p>
-  <h1 id="play-title">{% if state == 'QUESTION' %}回答一个问题{% elif state == 'GUESS' %}我有一个猜测{% elif state == 'UNABLE_TO_IDENTIFY' %}暂时无法确定身份{% elif state == 'LOCKED' %}本次识别已锁定{% elif state == 'EXPIRED' %}本次识别已过期{% elif state == 'VERIFICATION' %}进入身份验证{% else %}识别完成{% endif %}</h1>
+  <h1 id="play-title">{% if state == 'QUESTION' %}回答一个问题{% elif state == 'GUESS' %}我有一个猜测{% elif state == 'UNABLE_TO_IDENTIFY' %}暂时无法确定身份{% elif state == 'LOCKED' %}本次识别已锁定{% elif state == 'EXPIRED' %}本次识别已过期{% elif state == 'VERIFICATION' %}进入身份验证{% elif state == 'VERIFIED' %}你的内容已解锁{% else %}识别完成{% endif %}</h1>
   <ol class="flow-progress" aria-label="识别流程进度"><li class="active">识别</li><li class="{% if state not in ['QUESTION', 'GUESS'] %}active{% endif %}">确认</li><li class="{% if state in ['VERIFICATION', 'VERIFIED'] %}active{% endif %}">验证</li><li class="{% if state == 'VERIFIED' %}active{% endif %}">交付</li></ol>
   <p id="interaction-status" class="status-message" role="status" aria-live="polite"></p>
   <div id="discovery-interactive">
   {% if state == 'QUESTION' and payload.question %}
   <p class="question-text">{{ payload.question.text }}</p>
-  <form action="/play/{{ session_id }}/answer" method="post" class="answer-form" data-question-id="{{ payload.question.id }}">
-    <input type="hidden" name="question_id" value="{{ payload.question.id }}">
-    <button name="answer" value="yes" type="submit">是</button>
-    <button name="answer" value="probably_yes" type="submit">大概是</button>
-    <button name="answer" value="unknown" type="submit">不知道</button>
-    <button name="answer" value="probably_no" type="submit">大概不是</button>
-    <button name="answer" value="no" type="submit">不是</button>
-  </form>
+  <form action="/play/{{ session_id }}/answer" method="post" class="answer-form" data-question-id="{{ payload.question.id }}"><input type="hidden" name="question_id" value="{{ payload.question.id }}"><button name="answer" value="yes" type="submit">是</button><button name="answer" value="probably_yes" type="submit">大概是</button><button name="answer" value="unknown" type="submit">不知道</button><button name="answer" value="probably_no" type="submit">大概不是</button><button name="answer" value="no" type="submit">不是</button></form>
   {% elif state == 'GUESS' %}
-  <p class="question-text">我猜你是：{{ payload.guess.display_name }}</p>
-  <div class="answer-form"><form action="/play/{{ session_id }}/guess" method="post" data-accepted="true"><input type="hidden" name="accepted" value="true"><button type="submit">是我</button></form><form action="/play/{{ session_id }}/guess" method="post" data-accepted="false"><input type="hidden" name="accepted" value="false"><button type="submit">不是我</button></form></div>
+  <p class="question-text">我猜你是：{{ payload.guess.display_name }}</p><div class="answer-form"><form action="/play/{{ session_id }}/guess" method="post" data-accepted="true"><input type="hidden" name="accepted" value="true"><button type="submit">是我</button></form><form action="/play/{{ session_id }}/guess" method="post" data-accepted="false"><input type="hidden" name="accepted" value="false"><button type="submit">不是我</button></form></div>
   {% elif state == 'UNABLE_TO_IDENTIFY' %}
   <p class="lede">当前答案不足以可靠确定身份。我们不会强行猜测。</p><a class="button-link" href="/">重新开始</a>
   {% elif state == 'LOCKED' %}
-  <p class="lede">多次拒绝后，本次识别已安全锁定。</p><a class="button-link" href="/">重新开始</a>
+  <p class="lede">本次验证已锁定：尝试次数已用完。请回到首页重新开始，或联系管理员确认是否有其他验证方式；锁定不会删除内容。</p><a class="button-link" href="/">重新开始</a>
   {% elif state == 'EXPIRED' %}
-  <p class="lede">为了保护隐私，本次识别已过期。</p><a class="button-link" href="/">重新开始</a>
+  <p class="lede">为了保护隐私，本次识别已过期。请重新开始。</p><a class="button-link" href="/">重新开始</a>
   {% elif state == 'VERIFICATION' %}
-  {% if payload.challenge %}<p class="lede">请回答专属验证问题。</p><p class="question-text">{{ payload.challenge.prompt }}</p><form action="/play/{{ session_id }}/verify" method="post" class="answer-form" data-verify="true"><input type="hidden" name="challenge_id" value="{{ payload.challenge.id }}"><label>答案<input name="answer" autocomplete="off" required></label><button type="submit">提交验证</button></form>{% else %}<p class="lede">识别结果已确认，但尚未配置专属验证问题。</p>{% endif %}
+  {% if payload.challenge %}<p class="lede">请回答专属验证问题。正确答案不会显示在页面上。</p>{% if payload.message %}<p class="verification-feedback" role="alert">{{ payload.message }}</p>{% endif %}<p class="question-text">{{ payload.challenge.prompt }}</p><p class="verification-meta">还可尝试 {{ payload.challenge.attempts_remaining }} 次。{% if payload.challenge.retry_after_seconds > 0 %}请等待 {{ payload.challenge.retry_after_seconds }} 秒后再试。{% else %}连续答错会触发保护锁定，锁定后需要重新开始。{% endif %}</p><form action="/play/{{ session_id }}/verify" method="post" class="answer-form" data-verify="true"><input type="hidden" name="challenge_id" value="{{ payload.challenge.id }}"><label>答案<input name="answer" autocomplete="off" required{% if payload.challenge.retry_after_seconds > 0 %} disabled{% endif %}></label><button type="submit"{% if payload.challenge.retry_after_seconds > 0 %} disabled{% endif %}>提交验证</button></form>{% else %}<p class="lede">识别结果已确认，但尚未配置专属验证问题。</p>{% endif %}
   {% elif state == 'VERIFIED' %}
-  <p class="lede">身份验证通过。以下是当前身份可用的内容。</p>{% if payload.assets %}<ul class="asset-list">{% for asset in payload.assets %}<li><span>{{ asset.display_name }} · {{ asset.size }} bytes</span><form action="/play/{{ session_id }}/assets/{{ asset.id }}/grant" method="post" data-grant="{{ asset.id }}"><button type="submit">下载</button></form></li>{% endfor %}</ul>{% else %}<p class="muted">当前没有可用内容。</p>{% endif %}
-  {% else %}
-  <p class="lede">本次流程已完成。</p>
-  {% endif %}
+  <section class="delivery-cover"><span class="content-type-label">{{ payload.content_type_label }}</span><h2>{{ payload.cover_title }}</h2><p>{{ payload.opening }}</p><p class="signature">— {{ payload.signature }}</p></section><p class="lede">你的内容已解锁。下载链接会在短时间后失效，每个链接只能使用有限次数。</p>{% if payload.assets %}<ul class="asset-list">{% for asset in payload.assets %}<li><span>{{ asset.display_name }} · {{ asset.size }} bytes</span><form action="/play/{{ session_id }}/assets/{{ asset.id }}/grant" method="post" data-grant="{{ asset.id }}"><button type="submit">下载</button></form></li>{% endfor %}</ul>{% else %}<p class="muted">当前没有可用内容。</p>{% endif %}
+  {% else %}<p class="lede">本次流程已完成。</p>{% endif %}
   </div>
 </section>
 <section class="notice" aria-label="隐私提示"><strong>隐私提示与交付说明</strong><p>页面只显示当前问题或当前猜测，不显示候选名单、概率或其他人物信息。本版本在服务启动后立即提供内容，不代表“去世后才交付”；下载链接会显示有效期，失败时可刷新页面重试。</p></section>

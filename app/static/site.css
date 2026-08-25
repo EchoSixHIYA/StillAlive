@@ -25,3 +25,19 @@ button, .button-link { border: 0; border-radius: 999px; padding: 12px 18px; back
 .flow-progress li.active { color: #526b5e; border-color: #526b5e; font-weight: 700; }
 .status-message { min-height: 1.5em; color: #8a5b32; }
 button:disabled { opacity: .6; cursor: wait; }
+.verification-feedback { margin: 0; border-left: 4px solid #a1432c; background: #fff1ec; color: #7d3224; padding: 12px 14px; line-height: 1.6; }
+.verification-meta { margin: 0; color: #53605a; line-height: 1.6; }
+.delivery-cover { display: grid; gap: 12px; border: 1px solid #d8d1c3; border-radius: 16px; padding: 24px; background: #f7f2e9; }
+.delivery-cover h2, .delivery-cover h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; line-height: 1.15; }
+.delivery-cover p { margin: 0; color: #53605a; line-height: 1.75; white-space: pre-wrap; }
+.delivery-cover .signature { color: #36443c; font-family: Georgia, "Times New Roman", serif; }
+.content-type-label { color: #8a5b32; font-size: .82rem; letter-spacing: .12em; text-transform: uppercase; }
+.delivery-theme-warm .delivery-cover { background: #fff0df; border-color: #e8c39c; }
+.delivery-theme-warm .eyebrow, .delivery-theme-warm .content-type-label { color: #a45d28; }
+.delivery-theme-midnight { background: #202a38; color: #f8f0df; border-color: #48576b; }
+.delivery-theme-midnight .lede, .delivery-theme-midnight .delivery-cover p, .delivery-theme-midnight .verification-meta { color: #d6deea; }
+.delivery-theme-midnight .delivery-cover { background: #2c394d; border-color: #687b93; }
+.delivery-theme-midnight .eyebrow, .delivery-theme-midnight .content-type-label { color: #e1b976; }
+.delivery-theme-midnight .delivery-cover .signature { color: #fff3d6; }
+.delivery-theme-midnight .flow-progress li { border-color: #48576b; color: #aeb9c9; }
+.delivery-theme-midnight .flow-progress li.active { color: #f0ca84; border-color: #f0ca84; }

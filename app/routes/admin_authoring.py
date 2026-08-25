@@ -11,12 +11,15 @@ from sqlalchemy import func, select
 
 from app.models.admin import AdminUser
 from app.models.asset import Asset
+from app.models.delivery import DeliveryProfile
 from app.models.identity import Person, Question, TraitAnswer
 from app.models.integrity import IdentityIntegritySnapshot, IdentityPairMetric
 from app.models.verification import VerificationAnswerDigest, VerificationChallenge
 from app.security.admin_auth import require_admin, validate_admin_csrf
 from app.services.audit import record_audit
 from app.services.assets import asset_display_name, create_asset, rename_asset
+from app.services.data_lifecycle import permanently_delete_asset, permanently_delete_challenge, permanently_delete_person, restore_person_delivery, revoke_person_delivery
+from app.services.delivery import DELIVERY_CONTENT_TYPE_LABELS, DELIVERY_CONTENT_TYPES, DELIVERY_THEMES, delivery_profile_values, save_delivery_profile
 from app.services.identity_integrity import mark_latest_stale, recompute_incremental
 from app.services.verification import create_challenge, decrypt_prompt
 from app.services.metadata import (
@@ -36,6 +39,9 @@ VALID_PERSON_STATUSES = {"active", "disabled", "archived"}
 VALID_PRIVACY_LEVELS = {"L0_PUBLIC", "L1_RELATION", "L2_PRIVATE", "L3_SENSITIVE", "L4_VERIFICATION_ONLY"}
 VALID_ANSWER_SCALES = {"five_point", "boolean"}
 DISCOVERY_PRIVACY_LEVELS = VALID_PRIVACY_LEVELS - {"L4_VERIFICATION_ONLY"}
+
+ANSWER_VALUE_BY_CHOICE = {"yes": 1.0, "probably_yes": 0.5, "unknown": 0.0, "probably_no": -0.5, "no": -1.0}
+CONFIDENCE_BY_LEVEL = {"sure": 1.0, "likely": 0.75, "unsure": 0.5}
 
 
 def _csrf_token(request: Request) -> str:
@@ -105,10 +111,40 @@ def _validate_question_input(
     return text, privacy_level, answer_scale, numeric_weight, facet_tag or None, active
 
 
+def _trait_value(form, question_id: str) -> tuple[float, float] | None:
+    choice = form.get(f"answer_choice_{question_id}")
+    confidence_level = form.get(f"confidence_level_{question_id}")
+    value_raw = form.get(f"value_{question_id}")
+    confidence_raw = form.get(f"confidence_{question_id}")
+    if choice is not None:
+        value = ANSWER_VALUE_BY_CHOICE.get(str(choice))
+    elif value_raw is not None:
+        try:
+            value = float(value_raw)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Trait value must be a number") from exc
+    else:
+        value = None
+    if confidence_level is not None:
+        confidence = CONFIDENCE_BY_LEVEL.get(str(confidence_level))
+    elif confidence_raw is not None:
+        try:
+            confidence = float(confidence_raw)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Trait confidence must be a number") from exc
+    else:
+        confidence = None
+    if value is None and confidence is None:
+        return None
+    if value is None or confidence is None:
+        raise HTTPException(status_code=400, detail="Please choose both an answer and confidence")
+    return value, confidence
+
+
 @router.get("/people", response_class=HTMLResponse)
 def people_list(request: Request, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
     with request.app.state.session_factory() as db:
-        people = db.scalars(select(Person).order_by(Person.created_at.desc())).all()
+        people = db.scalars(select(Person).where(Person.status != "archived").order_by(Person.created_at.desc())).all()
         discovery_question_count = int(db.scalar(select(func.count(Question.id)).where(Question.active.is_(True), Question.privacy_level.in_(DISCOVERY_PRIVACY_LEVELS))) or 0)
         challenge_counts = {person_id: int(count) for person_id, count in db.execute(select(VerificationChallenge.person_id, func.count(VerificationChallenge.id)).where(VerificationChallenge.active.is_(True)).group_by(VerificationChallenge.person_id)).all()}
         asset_counts = {person_id: int(count) for person_id, count in db.execute(select(Asset.person_id, func.count(Asset.id)).where(Asset.active.is_(True)).group_by(Asset.person_id)).all()}
@@ -200,6 +236,64 @@ def person_update(
     return RedirectResponse(f"/admin/people/{person_id}", status_code=303)
 
 
+@router.post("/people/{person_id}/delivery-profile")
+def delivery_profile_update(
+    request: Request,
+    person_id: str,
+    theme: str = Form(...),
+    content_type: str = Form(...),
+    cover_title: str = Form(""),
+    opening: str = Form(""),
+    signature: str = Form(""),
+    csrf_token: str = Form(...),
+    admin: AdminUser = Depends(require_admin),
+) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    try:
+        with request.app.state.session_factory() as db:
+            if db.get(Person, person_id) is None:
+                raise HTTPException(status_code=404, detail="Person not found")
+            save_delivery_profile(
+                db,
+                request.app.state.settings,
+                person_id=person_id,
+                theme=theme,
+                content_type=content_type,
+                cover_title=cover_title,
+                opening=opening,
+                signature=signature,
+            )
+            record_audit(db, actor_type="admin", event_type="delivery_profile.updated", actor_id=admin.id, target_type="person", target_id=person_id, metadata={"theme": theme, "content_type": content_type, "plaintext_retained": False})
+            db.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return RedirectResponse(f"/admin/people/{person_id}#delivery", status_code=303)
+
+
+@router.get("/people/{person_id}/preview", response_class=HTMLResponse)
+def person_preview(request: Request, person_id: str, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
+    settings = request.app.state.settings
+    with request.app.state.session_factory() as db:
+        person = db.get(Person, person_id)
+        if person is None:
+            raise HTTPException(status_code=404, detail="Person not found")
+        profile = db.scalar(select(DeliveryProfile).where(DeliveryProfile.person_id == person_id))
+        assets = db.scalars(select(Asset).where(Asset.person_id == person_id, Asset.active.is_(True)).order_by(Asset.created_at.desc())).all()
+        asset_views = [{"asset": asset, "display_name": asset_display_name(asset, settings)} for asset in assets]
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/person_preview.html",
+        context={
+            "admin": admin,
+            "csrf_token": _csrf_token(request),
+            "person": person,
+            "display_name": decrypt_person_name(person.display_name_ciphertext, person.display_name_nonce, settings.master_key_bytes),
+            "profile": delivery_profile_values(profile, settings),
+            "asset_views": asset_views,
+        },
+    )
+
+
 @router.get("/people/{person_id}", response_class=HTMLResponse)
 def person_detail(request: Request, person_id: str, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
     with request.app.state.session_factory() as db:
@@ -219,6 +313,8 @@ def person_detail(request: Request, person_id: str, admin: AdminUser = Depends(r
         ]
         assets = db.scalars(select(Asset).where(Asset.person_id == person_id).order_by(Asset.created_at.desc())).all()
         asset_views = [{"asset": asset, "display_name": asset_display_name(asset, request.app.state.settings)} for asset in assets]
+        delivery_profile = db.scalar(select(DeliveryProfile).where(DeliveryProfile.person_id == person_id))
+        delivery_values = delivery_profile_values(delivery_profile, request.app.state.settings)
         latest_snapshot = db.scalar(select(IdentityIntegritySnapshot).order_by(IdentityIntegritySnapshot.created_at.desc()).limit(1))
         closest_metric = None
         if latest_snapshot:
@@ -253,6 +349,10 @@ def person_detail(request: Request, person_id: str, admin: AdminUser = Depends(r
             "closest_person": closest_person,
             "challenge_views": challenge_views,
             "asset_views": asset_views,
+            "delivery_profile": delivery_profile,
+            "delivery_values": delivery_values,
+            "delivery_themes": {"quiet": "安静留白", "warm": "温暖手写", "midnight": "深夜星光"},
+            "delivery_content_types": DELIVERY_CONTENT_TYPE_LABELS,
         },
     )
 
@@ -268,15 +368,10 @@ async def traits_save(request: Request, person_id: str, admin: AdminUser = Depen
         questions = db.scalars(select(Question).where(Question.privacy_level != "L4_VERIFICATION_ONLY")).all()
         changed = 0
         for question in questions:
-            value_raw = form.get(f"value_{question.id}")
-            confidence_raw = form.get(f"confidence_{question.id}")
-            if value_raw is None and confidence_raw is None:
+            trait = _trait_value(form, question.id)
+            if trait is None:
                 continue
-            try:
-                value = float(value_raw or 0)
-                confidence = float(confidence_raw or 0)
-            except ValueError as exc:
-                raise HTTPException(status_code=400, detail="Trait value and confidence must be numbers") from exc
+            value, confidence = trait
             if not -1 <= value <= 1 or not 0 <= confidence <= 1:
                 raise HTTPException(status_code=400, detail="Trait value/confidence out of range")
             note_raw = str(form.get(f"source_note_{question.id}") or "").strip()
@@ -316,6 +411,46 @@ def person_status(request: Request, person_id: str, status: str = Form(...), csr
         db.commit()
     recompute_incremental(request.app.state.db_engine, request.app.state.settings)
     return RedirectResponse(f"/admin/people/{person_id}", status_code=303)
+
+
+@router.post("/people/{person_id}/revoke-delivery")
+def person_delivery_revoke(request: Request, person_id: str, csrf_token: str = Form(...), admin: AdminUser = Depends(require_admin)) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    with request.app.state.session_factory() as db:
+        try:
+            revoke_person_delivery(db, person_id=person_id, actor_id=admin.id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return RedirectResponse(f"/admin/people/{person_id}#lifecycle", status_code=303)
+
+
+@router.post("/people/{person_id}/restore-delivery")
+def person_delivery_restore(request: Request, person_id: str, csrf_token: str = Form(...), admin: AdminUser = Depends(require_admin)) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    with request.app.state.session_factory() as db:
+        try:
+            restore_person_delivery(db, person_id=person_id, actor_id=admin.id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return RedirectResponse(f"/admin/people/{person_id}#lifecycle", status_code=303)
+
+
+def _require_permanent_confirmation(confirm_text: str) -> None:
+    if confirm_text.strip() != "永久删除":
+        raise HTTPException(status_code=400, detail="请输入“永久删除”确认不可恢复操作")
+
+
+@router.post("/people/{person_id}/delete")
+def person_delete(request: Request, person_id: str, confirm_text: str = Form(...), csrf_token: str = Form(...), admin: AdminUser = Depends(require_admin)) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    _require_permanent_confirmation(confirm_text)
+    with request.app.state.session_factory() as db:
+        try:
+            permanently_delete_person(db, request.app.state.settings, person_id=person_id, actor_id=admin.id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    recompute_incremental(request.app.state.db_engine, request.app.state.settings)
+    return RedirectResponse("/admin/people", status_code=303)
 
 
 @router.get("/questions", response_class=HTMLResponse)
@@ -502,6 +637,25 @@ def asset_rename(
     return RedirectResponse(f"/admin/people/{person_id}#assets", status_code=303)
 
 
+@router.post("/people/{person_id}/assets/{asset_id}/delete")
+def asset_delete(
+    request: Request,
+    person_id: str,
+    asset_id: str,
+    confirm_text: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: AdminUser = Depends(require_admin),
+) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    _require_permanent_confirmation(confirm_text)
+    with request.app.state.session_factory() as db:
+        try:
+            permanently_delete_asset(db, request.app.state.settings, person_id=person_id, asset_id=asset_id, actor_id=admin.id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return RedirectResponse(f"/admin/people/{person_id}#assets", status_code=303)
+
+
 @router.post("/people/{person_id}/challenges/{challenge_id}/status")
 def challenge_status(
     request: Request,
@@ -520,4 +674,23 @@ def challenge_status(
         challenge.active = active_bool
         record_audit(db, actor_type="admin", event_type="verification_challenge.enabled" if active_bool else "verification_challenge.disabled", actor_id=admin.id, target_type="challenge", target_id=challenge.id, metadata={"person_id": person_id})
         db.commit()
+    return RedirectResponse(f"/admin/people/{person_id}#verification", status_code=303)
+
+
+@router.post("/people/{person_id}/challenges/{challenge_id}/delete")
+def challenge_delete(
+    request: Request,
+    person_id: str,
+    challenge_id: str,
+    confirm_text: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: AdminUser = Depends(require_admin),
+) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    _require_permanent_confirmation(confirm_text)
+    with request.app.state.session_factory() as db:
+        try:
+            permanently_delete_challenge(db, person_id=person_id, challenge_id=challenge_id, actor_id=admin.id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
     return RedirectResponse(f"/admin/people/{person_id}#verification", status_code=303)

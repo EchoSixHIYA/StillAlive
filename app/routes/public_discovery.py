@@ -204,13 +204,24 @@ def play_guess(request: Request, session_id: str, accepted: bool = Form(...)) ->
 
 
 @router.post("/play/{session_id}/verify")
-def play_verify(request: Request, session_id: str, challenge_id: str = Form(...), answer: str = Form(...)) -> RedirectResponse:
+def play_verify(request: Request, session_id: str, challenge_id: str = Form(...), answer: str = Form(...)) -> Response:
     _public_guard(request, key=f"verify:{session_id}", limit=5, window_seconds=60)
     with request.app.state.session_factory() as db:
         session = db.get(DiscoverySession, session_id)
         if session is None:
             raise HTTPException(status_code=404, detail="session not found")
-        verify_session(db, session, request.app.state.settings, challenge_id=challenge_id, answer=answer)
+        try:
+            result = verify_session(db, session, request.app.state.settings, challenge_id=challenge_id, answer=answer)
+        except HTTPException as exc:
+            if exc.status_code != 429:
+                raise
+            result = verification_payload(db, session, request.app.state.settings, message="请先等待冷却时间结束，再提交下一次答案。")
+        if result.get("state") == "VERIFICATION" and result.get("message"):
+            return templates.TemplateResponse(
+                request=request,
+                name="play.html",
+                context={"session_id": session_id, "payload": result, "state": result["state"]},
+            )
     return RedirectResponse(f"/play/{session_id}", status_code=303)
 
 

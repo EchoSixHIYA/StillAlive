@@ -79,7 +79,7 @@ def create_session(db: Session, settings: Settings, *, client_ip: str | None, us
 
 
 def _load_engine(db: Session, session: DiscoverySession, settings: Settings) -> tuple[IdentityEngine, list[Question]]:
-    people = db.scalars(select(Person).where(Person.status == "active").order_by(Person.id)).all()
+    people = db.scalars(select(Person).where(Person.status == "active", Person.delivery_enabled.is_(True)).order_by(Person.id)).all()
     questions = db.scalars(
         select(Question).where(Question.active.is_(True), Question.privacy_level.in_(DISCOVERY_PRIVACY_LEVELS)).order_by(Question.id)
     ).all()
@@ -108,7 +108,7 @@ def _guess_name(db: Session, person_id: str | None, settings: Settings) -> str |
     if not person_id:
         return None
     person = db.get(Person, person_id)
-    if person is None or person.status != "active":
+    if person is None or person.status != "active" or not person.delivery_enabled:
         return None
     return decrypt_person_name(person.display_name_ciphertext, person.display_name_nonce, settings.master_key_bytes)
 

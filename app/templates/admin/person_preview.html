@@ -1,0 +1,13 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Still Alive · 朋友手机视角预览{% endblock %}
+
+{% block admin_content %}
+<section class="page-intro page-actions"><div><p class="eyebrow">交付预览</p><h2>朋友手机视角</h2><p class="muted">正在预览：{{ display_name }}</p></div><a class="button button-secondary" href="/admin/people/{{ person.id }}#delivery">返回人物档案</a></section>
+<section class="panel preview-warning"><strong>这是隔离预览</strong><p>不会创建正式会话、不会发放下载授权，也不会写入正式审计。它只帮助你确认手机上看到的文案和内容名称。</p></section>
+<div class="phone-preview delivery-theme-{{ profile.theme }}">
+  <div class="phone-preview-bar"><span>Still Alive</span><span>预览</span></div>
+  <section class="delivery-cover"><span class="content-type-label">{{ profile.content_type_label }}</span><h1>{{ profile.cover_title }}</h1><p>{{ profile.opening }}</p><p class="signature">— {{ profile.signature }}</p></section>
+  <section class="preview-content"><h2>你的内容已解锁</h2><p class="muted">验证成功后，朋友会在这里看到可领取的内容。下载链接会在短时间后失效。</p>{% if asset_views %}<ul class="asset-list">{% for item in asset_views %}<li><span>{{ item.display_name }} · {{ item.asset.size_plain }} bytes</span><button class="button button-secondary" type="button" disabled>下载</button></li>{% endfor %}</ul>{% else %}<p class="muted">当前还没有启用的遗产内容。</p>{% endif %}</section>
+</div>
+{% endblock %}

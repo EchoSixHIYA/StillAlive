@@ -74,7 +74,7 @@ def _choose_challenge(db: Session, session: DiscoverySession) -> VerificationCha
     return secrets.choice(available)
 
 
-def verification_payload(db: Session, session: DiscoverySession, settings: Settings) -> dict[str, object]:
+def verification_payload(db: Session, session: DiscoverySession, settings: Settings, *, message: str | None = None) -> dict[str, object]:
     if session.status == "verification" and datetime.now(timezone.utc) >= _as_utc(session.expires_at):
         session.status = "expired"
         db.commit()
@@ -87,14 +87,17 @@ def verification_payload(db: Session, session: DiscoverySession, settings: Setti
         raise HTTPException(status_code=409, detail="session is not ready for verification")
     challenge = _choose_challenge(db, session)
     if challenge is None:
-        return {"session_id": session.id, "state": "VERIFICATION", "challenge": None, "message": "No active verification challenge is configured."}
+        return {"session_id": session.id, "state": "VERIFICATION", "challenge": None, "message": message or "识别结果已确认，但尚未配置专属验证问题。"}
     failures = db.scalar(select(func.count(VerificationAttempt.id)).where(VerificationAttempt.session_id == session.id, VerificationAttempt.challenge_id == challenge.id, VerificationAttempt.success.is_(False))) or 0
     last_failure = db.scalar(select(VerificationAttempt).where(VerificationAttempt.session_id == session.id, VerificationAttempt.challenge_id == challenge.id, VerificationAttempt.success.is_(False)).order_by(VerificationAttempt.created_at.desc()).limit(1))
     retry_after = 0
     if last_failure:
         delay = max(challenge.cooldown_seconds, BACKOFF_SECONDS[min(max(failures - 1, 0), len(BACKOFF_SECONDS) - 1)])
         retry_after = max(0, int(delay - (datetime.now(timezone.utc) - _as_utc(last_failure.created_at)).total_seconds()))
-    return {"session_id": session.id, "state": "VERIFICATION", "challenge": {"id": challenge.id, "prompt": decrypt_prompt(challenge, settings), "attempts_remaining": max(0, challenge.max_attempts - int(failures)), "retry_after_seconds": retry_after}}
+    payload = {"session_id": session.id, "state": "VERIFICATION", "challenge": {"id": challenge.id, "prompt": decrypt_prompt(challenge, settings), "attempts_remaining": max(0, challenge.max_attempts - int(failures)), "retry_after_seconds": retry_after}}
+    if message:
+        payload["message"] = message
+    return payload
 
 
 def verify_session(db: Session, session: DiscoverySession, settings: Settings, *, challenge_id: str | None, answer: str) -> dict[str, object]:
@@ -135,4 +138,4 @@ def verify_session(db: Session, session: DiscoverySession, settings: Settings, *
         db.commit()
         return {"session_id": session.id, "state": "LOCKED"}
     db.commit()
-    return verification_payload(db, session, settings)
+    return verification_payload(db, session, settings, message="答案不匹配，请检查拼写后重试。")

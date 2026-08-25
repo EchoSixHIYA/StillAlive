@@ -10,7 +10,7 @@ from sqlalchemy import text
 
 
 router = APIRouter(tags=["health"])
-EXPECTED_MIGRATION_REVISION = "0010_sealed_release"
+EXPECTED_MIGRATION_REVISION = "0012_person_delivery_enabled"
 
 
 def _directory_status(path: Path) -> str:

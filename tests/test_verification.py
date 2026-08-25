@@ -125,6 +125,9 @@ def test_g03_wrong_answer_does_not_verify_or_leak_answer(client: TestClient) -> 
     wrong = client.post(f"/api/public/sessions/{session_id}/verify", json={"challenge_id": challenge["id"], "answer": "完全错误"})
     assert wrong.status_code == 200
     assert wrong.json()["state"] == "VERIFICATION"
+    assert "答案不匹配" in wrong.json()["message"]
+    assert wrong.json()["challenge"]["attempts_remaining"] == 4
+    assert wrong.json()["challenge"]["retry_after_seconds"] > 0
     assert "秘密花园" not in wrong.text
     with client.app.state.session_factory() as db:
         attempt = db.scalar(select(VerificationAttempt).where(VerificationAttempt.session_id == session_id))

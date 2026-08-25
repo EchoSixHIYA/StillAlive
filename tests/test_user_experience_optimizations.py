@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
 
 import pyotp
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.models.audit import AuditEvent
 from app.models.asset import Asset
-from app.models.identity import Question
+from app.models.delivery import DeliveryProfile
+from app.models.discovery import DiscoverySession
+from app.models.identity import Person, Question, TraitAnswer
+from app.models.grant import DownloadGrant
+from app.models.verification import VerificationChallenge
+from app.services.grants import create_grant
 
 
 LOGIN_CSRF_PATTERN = re.compile(r'name="csrf_token" value="([^"]+)"')
@@ -130,3 +137,92 @@ def test_release_page_turns_failed_gates_into_actions(client: TestClient) -> Non
     assert "Identity Integrity" in page.text
     assert "FAIL" in page.text
     assert "/admin/identity-integrity" in page.text
+
+
+def test_normal_trait_mode_maps_plain_language_to_identity_values(client: TestClient) -> None:
+    _login(client)
+    person_id = _create_person(client, "普通答案人物")
+    client.post("/admin/questions", data={"text": "普通模式问题？", "privacy_level": "L1_RELATION", "answer_scale": "five_point", "weight": "1.0", "facet_tag": "plain", "active": "on", "csrf_token": _csrf(client)}, follow_redirects=False)
+    with client.app.state.session_factory() as db:
+        question = db.scalar(select(Question).where(Question.facet_tag == "plain"))
+    assert question is not None
+    response = client.post(
+        f"/admin/people/{person_id}/traits",
+        data={f"answer_choice_{question.id}": "probably_no", f"confidence_level_{question.id}": "likely", "csrf_token": _csrf(client)},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    detail = client.get(f"/admin/people/{person_id}")
+    assert "普通模式：用自然语言选择" in detail.text
+    assert "高级设置（数字字段）" in detail.text
+    with client.app.state.session_factory() as db:
+        answer = db.get(TraitAnswer, (person_id, question.id))
+        assert answer is not None
+        assert answer.value == -0.5
+        assert answer.confidence == 0.75
+
+
+def test_delivery_profile_and_phone_preview_are_personalized_without_a_session(client: TestClient) -> None:
+    _login(client)
+    person_id = _create_person(client, "预览人物")
+    response = client.post(
+        f"/admin/people/{person_id}/delivery-profile",
+        data={"theme": "warm", "content_type": "photos", "cover_title": "给你的一封信", "opening": "愿你看到这里时，已经平安。", "signature": "你的朋友", "csrf_token": _csrf(client)},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    preview = client.get(f"/admin/people/{person_id}/preview")
+    assert preview.status_code == 200
+    assert "给你的一封信" in preview.text
+    assert "愿你看到这里时，已经平安。" in preview.text
+    assert "朋友手机视角" in preview.text
+    assert "不会创建正式会话" in preview.text
+    with client.app.state.session_factory() as db:
+        profile = db.scalar(select(DeliveryProfile).where(DeliveryProfile.person_id == person_id))
+        assert profile is not None
+        assert "给你的一封信".encode("utf-8") not in (profile.cover_title_ciphertext or b"")
+        assert db.scalar(select(DiscoverySession)) is None
+
+
+def test_revoke_restore_and_permanent_delete_have_distinct_safe_semantics(client: TestClient) -> None:
+    _login(client)
+    person_id = _create_person(client, "生命周期人物")
+    upload = client.post(f"/admin/people/{person_id}/assets", data={"display_name": "要删除的内容.txt", "csrf_token": _csrf(client)}, files={"file": ("payload.txt", b"private lifecycle payload", "text/plain")}, follow_redirects=False)
+    assert upload.status_code == 303
+    challenge_response = client.post(f"/admin/people/{person_id}/challenges", data={"prompt": "生命周期验证？", "answers": "答案", "csrf_token": _csrf(client)}, follow_redirects=False)
+    assert challenge_response.status_code == 303
+    with client.app.state.session_factory() as db:
+        person = db.get(Person, person_id)
+        asset = db.scalar(select(Asset).where(Asset.person_id == person_id))
+        challenge = db.scalar(select(VerificationChallenge).where(VerificationChallenge.person_id == person_id))
+        assert person is not None and asset is not None and challenge is not None
+        session = DiscoverySession(status="verified", expires_at=datetime.now(timezone.utc) + timedelta(hours=1), confirmed_person_id=person_id)
+        db.add(session)
+        db.flush()
+        create_grant(db, session, client.app.state.settings, asset_id=asset.id)
+        db.commit()
+
+    revoke = client.post(f"/admin/people/{person_id}/revoke-delivery", data={"csrf_token": _csrf(client)}, follow_redirects=False)
+    assert revoke.status_code == 303
+    with client.app.state.session_factory() as db:
+        person = db.get(Person, person_id)
+        session = db.scalar(select(DiscoverySession).where(DiscoverySession.confirmed_person_id == person_id))
+        grant = db.scalar(select(DownloadGrant).where(DownloadGrant.person_id == person_id))
+        assert person is not None and person.delivery_enabled is False
+        assert session is not None and session.status == "expired"
+        assert grant is not None and grant.revoked_at is not None
+    restore = client.post(f"/admin/people/{person_id}/restore-delivery", data={"csrf_token": _csrf(client)}, follow_redirects=False)
+    assert restore.status_code == 303
+    with client.app.state.session_factory() as db:
+        assert db.get(Person, person_id).delivery_enabled is True
+
+    blocked = client.post(f"/admin/people/{person_id}/delete", data={"confirm_text": "删除", "csrf_token": _csrf(client)}, follow_redirects=False)
+    assert blocked.status_code == 400
+    deleted = client.post(f"/admin/people/{person_id}/delete", data={"confirm_text": "永久删除", "csrf_token": _csrf(client)}, follow_redirects=False)
+    assert deleted.status_code == 303
+    with client.app.state.session_factory() as db:
+        assert db.get(Person, person_id) is None
+        assert db.scalar(select(Asset).where(Asset.person_id == person_id)) is None
+        assert db.scalar(select(VerificationChallenge).where(VerificationChallenge.person_id == person_id)) is None
+        audit = db.scalar(select(AuditEvent).where(AuditEvent.event_type == "person.permanently_deleted", AuditEvent.target_id == person_id))
+        assert audit is not None
