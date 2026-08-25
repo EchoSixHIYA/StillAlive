@@ -80,6 +80,48 @@ def _trait_map(db, person_ids: set[str]) -> dict[tuple[str, str], TraitAnswer]:
     return {(answer.person_id, answer.question_id): answer for answer in answers}
 
 
+def _action_items(db, pair_views: list[dict[str, object]], master_key: bytes) -> list[dict[str, object]]:
+    """Turn risk metrics into named, directly actionable authoring tasks."""
+
+    questions = db.scalars(
+        select(Question).where(
+            Question.active.is_(True),
+            Question.privacy_level.in_(DISCOVERY_PRIVACY_LEVELS),
+        ).order_by(Question.weight.desc(), Question.id)
+    ).all()
+    result: list[dict[str, object]] = []
+    for item in pair_views:
+        metric = item["metric"]
+        if not isinstance(metric, IdentityPairMetric) or metric.risk not in {"blocking", "warning"}:
+            continue
+        answers = _trait_map(db, {metric.person_a_id, metric.person_b_id})
+        selected = None
+        for question in questions:
+            answer_a = answers.get((metric.person_a_id, question.id))
+            answer_b = answers.get((metric.person_b_id, question.id))
+            if answer_a is None or answer_b is None:
+                selected = (question, metric.person_a_id if answer_a is None else metric.person_b_id, "补齐这道问题的识别答案")
+                break
+        if selected is None:
+            selected = (questions[0], metric.person_a_id, "检查并拉开这道问题的答案差异") if questions else None
+        if selected is None:
+            continue
+        question, person_id, action = selected
+        result.append(
+            {
+                "metric": metric,
+                "person_a_name": item["person_a_name"],
+                "person_b_name": item["person_b_name"],
+                "person_id": person_id,
+                "person_name": item["person_a_name"] if person_id == metric.person_a_id else item["person_b_name"],
+                "question_text": decrypt_question_text(question.text_ciphertext, question.text_nonce, master_key),
+                "action": action,
+                "action_url": f"/admin/identity-integrity/wizard?pair_id={metric.id}",
+            }
+        )
+    return result
+
+
 @router.get("/identity-integrity", response_class=HTMLResponse)
 def integrity_dashboard(request: Request, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
     with request.app.state.session_factory() as db:
@@ -89,7 +131,8 @@ def integrity_dashboard(request: Request, admin: AdminUser = Depends(require_adm
         if snapshot:
             pair_views = [_metric_view(db, metric, request.app.state.settings.master_key_bytes) for metric in db.scalars(select(IdentityPairMetric).where(IdentityPairMetric.snapshot_id == snapshot.id).order_by(IdentityPairMetric.risk.desc(), IdentityPairMetric.confusion_a_to_b.desc())).all()]
             clusters = db.scalars(select(IdentityCluster).where(IdentityCluster.snapshot_id == snapshot.id)).all()
-    return templates.TemplateResponse(request=request, name="admin/integrity_dashboard.html", context={"admin": admin, "csrf_token": _csrf(request), "snapshot": snapshot, "pair_views": pair_views, "clusters": clusters})
+        action_items = _action_items(db, pair_views, request.app.state.settings.master_key_bytes) if pair_views else []
+    return templates.TemplateResponse(request=request, name="admin/integrity_dashboard.html", context={"admin": admin, "csrf_token": _csrf(request), "snapshot": snapshot, "pair_views": pair_views, "clusters": clusters, "action_items": action_items})
 
 
 @router.post("/identity-integrity/recompute")
@@ -164,7 +207,11 @@ def wizard(request: Request, pair_id: str | None = None, admin: AdminUser = Depe
         snapshot = _latest(db)
         metric = _pair_for_wizard(db, snapshot, pair_id)
         question_views = []
+        person_a_name = person_b_name = None
         if metric:
+            names = _person_names(db, {metric.person_a_id, metric.person_b_id}, request.app.state.settings.master_key_bytes)
+            person_a_name = names.get(metric.person_a_id, metric.person_a_id)
+            person_b_name = names.get(metric.person_b_id, metric.person_b_id)
             answers = _trait_map(db, {metric.person_a_id, metric.person_b_id})
             questions = db.scalars(select(Question).where(Question.active.is_(True), Question.privacy_level.in_(DISCOVERY_PRIVACY_LEVELS))).all()
             existing_facets = set()
@@ -177,7 +224,7 @@ def wizard(request: Request, pair_id: str | None = None, admin: AdminUser = Depe
                 question_views.append({"question": question, "text": decrypt_question_text(question.text_ciphertext, question.text_nonce, request.app.state.settings.master_key_bytes), "a": a, "b": b, "missing": a is None or b is None, "expected_discriminator": expected >= 1.0})
             preview_facet_delta = 0 if "work" in existing_facets else 1
     question_views.sort(key=lambda item: (not item["missing"], not item["expected_discriminator"], item["question"].id))
-    return templates.TemplateResponse(request=request, name="admin/integrity_wizard.html", context={"admin": admin, "csrf_token": _csrf(request), "snapshot": snapshot, "metric": metric, "question_views": question_views, "preview_strong_delta": preview_strong_delta, "preview_facet_delta": preview_facet_delta})
+    return templates.TemplateResponse(request=request, name="admin/integrity_wizard.html", context={"admin": admin, "csrf_token": _csrf(request), "snapshot": snapshot, "metric": metric, "question_views": question_views, "preview_strong_delta": preview_strong_delta, "preview_facet_delta": preview_facet_delta, "person_a_name": person_a_name, "person_b_name": person_b_name})
 
 
 @router.post("/identity-integrity/wizard/traits")

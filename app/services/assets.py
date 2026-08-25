@@ -83,3 +83,14 @@ def decrypt_asset(asset: Asset, settings: Settings) -> bytes:
 
 def asset_display_name(asset: Asset, settings: Settings) -> str:
     return decrypt_secret(asset.display_name_ciphertext, asset.display_name_nonce, settings.master_key_bytes, context=ASSET_NAME_CONTEXT)
+
+
+def rename_asset(asset: Asset, settings: Settings, display_name: str) -> None:
+    """Update only the encrypted display label; ciphertext content is untouched."""
+
+    display_name = display_name.strip()
+    if not display_name or len(display_name) > 200 or "\r" in display_name or "\n" in display_name:
+        raise HTTPException(status_code=400, detail="invalid asset display name")
+    nonce, ciphertext = encrypt_secret(display_name, settings.master_key_bytes, context=ASSET_NAME_CONTEXT)
+    asset.display_name_nonce = nonce
+    asset.display_name_ciphertext = ciphertext

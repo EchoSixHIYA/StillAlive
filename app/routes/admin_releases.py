@@ -226,7 +226,32 @@ def _release_context(request: Request, admin: AdminUser, *, gates=None, error: s
         recovery_record = active_recovery_record(db)
         if gates is None:
             gates = evaluate_gates(db, request.app.state.db_engine, request.app.state.settings)
-    return {"admin": admin, "csrf_token": _csrf(request), "releases": releases, "recovery_record": recovery_record, "gates": gates, "error": error}
+    friendly_gates = [_friendly_gate(gate) for gate in gates]
+    return {"admin": admin, "csrf_token": _csrf(request), "releases": releases, "recovery_record": recovery_record, "gates": friendly_gates, "error": error}
+
+
+def _friendly_gate(gate) -> dict[str, object]:
+    labels = {
+        "integrity": ("身份完整性 / Identity Integrity", "去处理人物混淆待办", "/admin/identity-integrity"),
+        "active_person_challenges": ("每个人物都有专属验证", "去配置缺少验证的人物", "/admin/people"),
+        "verification_digests": ("验证答案完整", "去检查专属验证问题", "/admin/people"),
+        "asset_roundtrip": ("遗产内容可安全读取", "去检查遗产内容", "/admin/people"),
+        "vault": ("加密内容仓库可访问", "检查运行目录", "/admin"),
+        "runtime_secrets": ("运行密钥已加载", "检查运行配置", "/admin"),
+        "recovery_key": ("Recovery Key 已配置", "去保存 Recovery Key", "/admin/recovery-key"),
+        "migration": ("数据库结构已同步", "检查数据库迁移", "/admin"),
+        "dependencies": ("离线依赖清单完整", "检查项目依赖文件", "/admin"),
+        "offline_runtime": ("离线恢复运行环境可构建", "检查离线运行环境", "/admin/releases"),
+    }
+    label, action, action_url = labels.get(gate.key, (gate.label, "查看封存配置", "/admin/releases"))
+    return {
+        "key": gate.key,
+        "label": label,
+        "passed": gate.passed,
+        "detail": "已通过，可以继续。" if gate.passed else f"还不能封存：{action}。",
+        "action": action if not gate.passed else "",
+        "action_url": action_url,
+    }
 
 
 @router.get("/releases", response_class=HTMLResponse)

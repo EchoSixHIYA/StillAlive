@@ -9,6 +9,7 @@ body { margin: 0; }
 .page-shell { max-width: 760px; margin: 0 auto; padding: 12vh 24px; }
 .hero, .notice { background: #fffdf8; border: 1px solid #d8d1c3; border-radius: 18px; padding: 32px; }
 .notice { margin-top: 18px; }
+.delivery-mode { padding: 12px 14px; border-left: 4px solid #8a5b32; background: #f7f2e9; color: #53605a; line-height: 1.6; }
 .eyebrow { letter-spacing: .14em; text-transform: uppercase; color: #8a5b32; }
 h1 { max-width: 620px; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.05; }
 .lede { color: #53605a; line-height: 1.7; }
@@ -19,3 +20,8 @@ button, .button-link { border: 0; border-radius: 999px; padding: 12px 18px; back
 .answer-form form { margin: 0; }
 .asset-list { display: grid; gap: 12px; list-style: none; padding: 0; }
 .asset-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid #d8d1c3; padding: 12px 0; }
+.flow-progress { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; list-style: none; padding: 0; margin: 0; color: #8d938e; font-size: .9rem; }
+.flow-progress li { padding: 8px; border-bottom: 3px solid #d8d1c3; text-align: center; }
+.flow-progress li.active { color: #526b5e; border-color: #526b5e; font-weight: 700; }
+.status-message { min-height: 1.5em; color: #8a5b32; }
+button:disabled { opacity: .6; cursor: wait; }

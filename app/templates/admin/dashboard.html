@@ -6,17 +6,25 @@
 <section class="page-intro">
   <p class="muted">已登录管理员：{{ admin.username }}</p>
   <h2>系统总览</h2>
-  <p class="muted">当前为 Phase 1 后台骨架。公共交付状态默认显示为可用，不依赖生命周期触发器。</p>
+  <p class="muted">当前服务启动后即可提供定向交付；它不会等待死亡、倒计时或 Heartbeat。首次使用请按配置路线完成内容准备。</p>
+</section>
+<section class="panel setup-banner {% if setup.all_required_done %}setup-banner-ready{% endif %}">
+  <div>
+    <p class="eyebrow">首次配置</p>
+    <h2>{% if setup.all_required_done %}基础配置已完成{% else %}还剩 {{ setup.total - setup.completed }} 步需要处理{% endif %}</h2>
+    <p class="muted">推荐顺序：人物 → 识别问题 → 人物答案 → 专属验证 → 遗产内容 → 前台试跑 → Recovery Key → 身份完整性 → 离线封存包。</p>
+  </div>
+  <a class="button{% if setup.all_required_done %} button-secondary{% endif %}" href="/admin/setup">{{ "查看配置结果" if setup.all_required_done else "开始配置向导" }}</a>
 </section>
 <div class="metric-grid">
-  <article class="metric-card"><span>Active Person</span><strong>{{ metrics.active_people }}</strong></article>
-  <article class="metric-card"><span>Active Question</span><strong>{{ metrics.active_questions }}</strong></article>
-  <article class="metric-card"><span>Identity Integrity</span><strong>{{ metrics.integrity_status }}</strong></article>
-  <article class="metric-card"><span>Blocking / Warning Pair</span><strong>{{ metrics.blocking_pairs }} / {{ metrics.warning_pairs }}</strong></article>
-  <article class="metric-card"><span>Confusion Cluster</span><strong>{{ metrics.clusters }}</strong></article>
-  <article class="metric-card"><span>Public Delivery</span><strong>{{ metrics.public_delivery }}</strong></article>
-  <article class="metric-card"><span>READY Release</span><strong>{{ metrics.ready_releases }}</strong></article>
-  <article class="metric-card"><span>最新 Release</span><strong>{{ metrics.latest_release }}</strong></article>
+  <article class="metric-card"><span>启用人物 / Active Person</span><strong>{{ metrics.active_people }}</strong></article>
+  <article class="metric-card"><span>识别问题 / Active Question</span><strong>{{ metrics.active_questions }}</strong></article>
+  <article class="metric-card"><span>身份完整性 / Identity Integrity</span><strong>{{ metrics.integrity_status }}</strong></article>
+  <article class="metric-card"><span>阻塞 / 提醒人物对</span><strong>{{ metrics.blocking_pairs }} / {{ metrics.warning_pairs }}</strong></article>
+  <article class="metric-card"><span>混淆群组 / Confusion Cluster</span><strong>{{ metrics.clusters }}</strong></article>
+  <article class="metric-card"><span>线上交付 / Public Delivery</span><strong>{{ metrics.public_delivery }}</strong></article>
+  <article class="metric-card"><span>可用离线封存包 / READY Release</span><strong>{{ metrics.ready_releases }}</strong></article>
+  <article class="metric-card"><span>最新离线封存包 / Release</span><strong>{{ metrics.latest_release }}</strong></article>
 </div>
 <section class="panel">
   <div class="panel-heading"><h2>最近审计事件</h2><a href="/admin/audit">查看全部</a></div>

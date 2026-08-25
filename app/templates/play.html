@@ -6,6 +6,8 @@
 <section class="hero discovery-hero" id="discovery-state" data-session-id="{{ session_id }}" aria-labelledby="play-title">
   <p class="eyebrow">Still Alive · Discovery</p>
   <h1 id="play-title">{% if state == 'QUESTION' %}回答一个问题{% elif state == 'GUESS' %}我有一个猜测{% elif state == 'UNABLE_TO_IDENTIFY' %}暂时无法确定身份{% elif state == 'LOCKED' %}本次识别已锁定{% elif state == 'EXPIRED' %}本次识别已过期{% elif state == 'VERIFICATION' %}进入身份验证{% else %}识别完成{% endif %}</h1>
+  <ol class="flow-progress" aria-label="识别流程进度"><li class="active">识别</li><li class="{% if state not in ['QUESTION', 'GUESS'] %}active{% endif %}">确认</li><li class="{% if state in ['VERIFICATION', 'VERIFIED'] %}active{% endif %}">验证</li><li class="{% if state == 'VERIFIED' %}active{% endif %}">交付</li></ol>
+  <p id="interaction-status" class="status-message" role="status" aria-live="polite"></p>
   <div id="discovery-interactive">
   {% if state == 'QUESTION' and payload.question %}
   <p class="question-text">{{ payload.question.text }}</p>
@@ -35,6 +37,6 @@
   {% endif %}
   </div>
 </section>
-<section class="notice" aria-label="隐私提示"><strong>隐私提示</strong><p>页面只显示当前问题或当前猜测，不显示候选名单、概率或其他人物信息。</p></section>
+<section class="notice" aria-label="隐私提示"><strong>隐私提示与交付说明</strong><p>页面只显示当前问题或当前猜测，不显示候选名单、概率或其他人物信息。本版本在服务启动后立即提供内容，不代表“去世后才交付”；下载链接会显示有效期，失败时可刷新页面重试。</p></section>
 <script src="{{ url_for('static', path='discovery.js') }}" defer></script>
 {% endblock %}

@@ -16,7 +16,7 @@ from app.models.integrity import IdentityIntegritySnapshot, IdentityPairMetric
 from app.models.verification import VerificationAnswerDigest, VerificationChallenge
 from app.security.admin_auth import require_admin, validate_admin_csrf
 from app.services.audit import record_audit
-from app.services.assets import asset_display_name, create_asset
+from app.services.assets import asset_display_name, create_asset, rename_asset
 from app.services.identity_integrity import mark_latest_stale, recompute_incremental
 from app.services.verification import create_challenge, decrypt_prompt
 from app.services.metadata import (
@@ -109,8 +109,17 @@ def _validate_question_input(
 def people_list(request: Request, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
     with request.app.state.session_factory() as db:
         people = db.scalars(select(Person).order_by(Person.created_at.desc())).all()
+        discovery_question_count = int(db.scalar(select(func.count(Question.id)).where(Question.active.is_(True), Question.privacy_level.in_(DISCOVERY_PRIVACY_LEVELS))) or 0)
+        challenge_counts = {person_id: int(count) for person_id, count in db.execute(select(VerificationChallenge.person_id, func.count(VerificationChallenge.id)).where(VerificationChallenge.active.is_(True)).group_by(VerificationChallenge.person_id)).all()}
+        asset_counts = {person_id: int(count) for person_id, count in db.execute(select(Asset.person_id, func.count(Asset.id)).where(Asset.active.is_(True)).group_by(Asset.person_id)).all()}
+        discovery_question_ids = {question.id for question in db.scalars(select(Question).where(Question.active.is_(True), Question.privacy_level.in_(DISCOVERY_PRIVACY_LEVELS))).all()}
+        trait_counts = {person.id: sum(1 for answer in person.trait_answers if answer.question_id in discovery_question_ids) for person in people}
     master_key = request.app.state.settings.master_key_bytes
-    views = [_person_view(person, master_key) for person in people]
+    views = []
+    for person in people:
+        view = _person_view(person, master_key)
+        view.update({"answered_traits": trait_counts.get(person.id, 0), "discovery_question_count": discovery_question_count, "challenge_count": challenge_counts.get(person.id, 0), "asset_count": asset_counts.get(person.id, 0)})
+        views.append(view)
     return templates.TemplateResponse(
         request=request,
         name="admin/people_list.html",
@@ -149,6 +158,45 @@ def person_create(
         db.commit()
         person_id = person.id
     recompute_incremental(request.app.state.db_engine, settings)
+    return RedirectResponse(f"/admin/people/{person_id}", status_code=303)
+
+
+@router.get("/people/{person_id}/edit", response_class=HTMLResponse)
+def person_edit(request: Request, person_id: str, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
+    with request.app.state.session_factory() as db:
+        person = db.get(Person, person_id)
+        if person is None:
+            raise HTTPException(status_code=404, detail="Person not found")
+    display_name = decrypt_person_name(person.display_name_ciphertext, person.display_name_nonce, request.app.state.settings.master_key_bytes)
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/person_form.html",
+        context={"admin": admin, "csrf_token": _csrf_token(request), "person": person, "display_name": display_name, "status": person.status, "error": None},
+    )
+
+
+@router.post("/people/{person_id}")
+def person_update(
+    request: Request,
+    person_id: str,
+    display_name: str = Form(...),
+    status: str = Form("active"),
+    csrf_token: str = Form(...),
+    admin: AdminUser = Depends(require_admin),
+) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    display_name, status = _validate_person_input(display_name, status)
+    with request.app.state.session_factory() as db:
+        person = db.get(Person, person_id)
+        if person is None:
+            raise HTTPException(status_code=404, detail="Person not found")
+        mark_latest_stale(db, actor_type="admin", actor_id=admin.id, reason="person.updated")
+        nonce, ciphertext = encrypt_person_name(display_name, request.app.state.settings.master_key_bytes)
+        person.display_name_nonce, person.display_name_ciphertext, person.status = nonce, ciphertext, status
+        record_audit(db, actor_type="admin", event_type="person.updated", actor_id=admin.id, target_type="person", target_id=person_id, metadata={"status": status, "display_name_changed": True})
+        record_audit(db, actor_type="admin", event_type="identity_integrity.stale", actor_id=admin.id, target_type="person", target_id=person_id, metadata={"reason": "person.updated"})
+        db.commit()
+    recompute_incremental(request.app.state.db_engine, request.app.state.settings)
     return RedirectResponse(f"/admin/people/{person_id}", status_code=303)
 
 
@@ -432,3 +480,44 @@ def asset_status(
         )
         db.commit()
     return RedirectResponse(f"/admin/people/{person_id}#assets", status_code=303)
+
+
+@router.post("/people/{person_id}/assets/{asset_id}/rename")
+def asset_rename(
+    request: Request,
+    person_id: str,
+    asset_id: str,
+    display_name: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: AdminUser = Depends(require_admin),
+) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    with request.app.state.session_factory() as db:
+        asset = db.get(Asset, asset_id)
+        if asset is None or asset.person_id != person_id:
+            raise HTTPException(status_code=404, detail="Asset not found")
+        rename_asset(asset, request.app.state.settings, display_name)
+        record_audit(db, actor_type="admin", event_type="asset.renamed", actor_id=admin.id, target_type="asset", target_id=asset.id, metadata={"person_id": person_id})
+        db.commit()
+    return RedirectResponse(f"/admin/people/{person_id}#assets", status_code=303)
+
+
+@router.post("/people/{person_id}/challenges/{challenge_id}/status")
+def challenge_status(
+    request: Request,
+    person_id: str,
+    challenge_id: str,
+    active: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: AdminUser = Depends(require_admin),
+) -> RedirectResponse:
+    _require_csrf(request, csrf_token)
+    active_bool = active.strip().lower() in {"1", "true", "on", "yes"}
+    with request.app.state.session_factory() as db:
+        challenge = db.get(VerificationChallenge, challenge_id)
+        if challenge is None or challenge.person_id != person_id:
+            raise HTTPException(status_code=404, detail="Verification challenge not found")
+        challenge.active = active_bool
+        record_audit(db, actor_type="admin", event_type="verification_challenge.enabled" if active_bool else "verification_challenge.disabled", actor_id=admin.id, target_type="challenge", target_id=challenge.id, metadata={"person_id": person_id})
+        db.commit()
+    return RedirectResponse(f"/admin/people/{person_id}#verification", status_code=303)

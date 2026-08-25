@@ -2,6 +2,7 @@
   const state = document.getElementById("discovery-state");
   const interactive = document.getElementById("discovery-interactive");
   const title = document.getElementById("play-title");
+  const statusMessage = document.getElementById("interaction-status");
   if (!state || !interactive || !title) return;
 
   const sessionId = state.dataset.sessionId;
@@ -26,6 +27,10 @@
     return link;
   }
 
+  function setStatus(message) {
+    if (statusMessage) statusMessage.textContent = message || "";
+  }
+
   function render(payload) {
     if (payload.state === "VERIFICATION" && !Object.prototype.hasOwnProperty.call(payload, "challenge")) {
       fetch(`/api/public/sessions/${sessionId}/challenge`)
@@ -40,6 +45,7 @@
       return;
     }
     interactive.replaceChildren();
+    setStatus("");
     title.textContent = payload.state === "QUESTION" ? "回答一个问题" : payload.state === "GUESS" ? "我有一个猜测" : payload.state === "UNABLE_TO_IDENTIFY" ? "暂时无法确定身份" : payload.state === "LOCKED" ? "本次识别已锁定" : payload.state === "EXPIRED" ? "本次识别已过期" : payload.state === "VERIFICATION" ? "进入身份验证" : "识别完成";
     if (payload.state === "QUESTION" && payload.question) {
       interactive.append(element("p", "question-text", payload.question.text));
@@ -147,6 +153,8 @@
     const submitter = event.submitter;
     if (form.dataset.questionId && submitter) body.answer = submitter.value;
     try {
+      setStatus(form.dataset.grant ? "正在生成安全下载链接…" : "正在提交答案…");
+      Array.from(form.querySelectorAll("button")).forEach((button) => { button.disabled = true; });
       const options = { method: "POST" };
       if (body !== undefined) {
         options.headers = { "Content-Type": "application/json" };
@@ -156,11 +164,14 @@
       if (!response.ok) throw new Error("request failed");
       if (form.dataset.grant) {
         const grant = await response.json();
-        window.location.assign(grant.download_url);
+        const expires = grant.expires_at ? new Date(grant.expires_at).toLocaleTimeString() : "短时间内";
+        setStatus(`下载链接已生成，有效期至 ${expires}，正在开始下载…`);
+        window.setTimeout(() => window.location.assign(grant.download_url), 250);
         return;
       }
       render(await response.json());
     } catch (_error) {
+      setStatus("网络请求失败，正在切换为普通表单提交…");
       form.submit();
     }
   });

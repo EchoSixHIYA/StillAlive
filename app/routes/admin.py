@@ -15,6 +15,8 @@ from sqlalchemy import select
 from app.models.admin import AdminSession, AdminUser
 from app.models.audit import AuditEvent
 from app.models.grant import DownloadGrant
+from app.models.integrity import IdentityIntegritySnapshot
+from app.models.release import SealedRelease
 from app.security.admin_auth import (
     ADMIN_CSRF_COOKIE,
     ADMIN_LOGIN_CSRF_COOKIE,
@@ -32,6 +34,7 @@ from app.security.admin_auth import (
     token_digest,
 )
 from app.services.audit import record_audit
+from app.services.setup import build_setup_checklist
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -103,23 +106,45 @@ def login(
 def dashboard(request: Request, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
     with request.app.state.session_factory() as db:
         latest_events = db.scalars(select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(5)).all()
+        setup = build_setup_checklist(db)
+        snapshot = setup["latest_snapshot"]
+        latest_release = db.scalar(select(SealedRelease).order_by(SealedRelease.created_at.desc()).limit(1))
+    integrity_status = "尚未计算"
+    blocking_pairs = warning_pairs = clusters = 0
+    if isinstance(snapshot, IdentityIntegritySnapshot):
+        integrity_status = {"pass": "通过", "warning": "提醒", "blocking": "阻塞", "stale": "待重算"}.get(snapshot.status, snapshot.status)
+        blocking_pairs = snapshot.blocking_pair_count
+        warning_pairs = snapshot.warning_pair_count
+        clusters = snapshot.cluster_count
     context = {
         "admin": admin,
         "csrf_token": _admin_csrf_token(request),
         "metrics": {
-            "active_people": 0,
-            "active_questions": 0,
-            "integrity_status": "尚未计算",
-            "blocking_pairs": 0,
-            "warning_pairs": 0,
-            "clusters": 0,
+            "active_people": setup["active_people"],
+            "active_questions": setup["active_questions"],
+            "integrity_status": integrity_status,
+            "blocking_pairs": blocking_pairs,
+            "warning_pairs": warning_pairs,
+            "clusters": clusters,
             "public_delivery": "可用",
-            "ready_releases": 0,
-            "latest_release": "暂无",
+            "ready_releases": setup["ready_releases"],
+            "latest_release": latest_release.version if latest_release else "暂无",
         },
         "latest_events": latest_events,
+        "setup": setup,
     }
     return templates.TemplateResponse(request=request, name="admin/dashboard.html", context=context)
+
+
+@router.get("/setup", response_class=HTMLResponse)
+def setup_page(request: Request, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
+    with request.app.state.session_factory() as db:
+        setup = build_setup_checklist(db)
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/setup.html",
+        context={"admin": admin, "csrf_token": _admin_csrf_token(request), "setup": setup},
+    )
 
 
 @router.get("/audit", response_class=HTMLResponse)

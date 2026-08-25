@@ -3,11 +3,11 @@
 {% block admin_title %}Still Alive · 人物{% endblock %}
 
 {% block admin_content %}
-<section class="page-intro page-actions"><div><h2>人物管理</h2><p class="muted">显示名称只在管理员后台解密展示，内部 URL 使用随机 UUID。</p></div><a class="button" href="/admin/people/new">新建人物</a></section>
+<section class="page-intro page-actions"><div><h2>人物管理</h2><p class="muted">显示名称只在管理员后台解密展示。停用或归档会保留数据，便于回滚和审计。</p></div><a class="button" href="/admin/people/new">新建人物</a></section>
 <section class="panel">
   {% if people %}
-  <div class="table-wrap"><table><thead><tr><th>人物</th><th>状态</th><th>Identity Health</th><th>Verification</th><th>Assets</th><th></th></tr></thead><tbody>
-    {% for item in people %}<tr><td>{{ item.display_name }}</td><td>{{ item.person.status }}</td><td>Identity model incomplete</td><td>Phase 6 配置</td><td>Phase 7 配置</td><td><a href="/admin/people/{{ item.person.id }}">查看</a></td></tr>{% endfor %}
+  <div class="table-wrap"><table><thead><tr><th>人物</th><th>状态</th><th>识别答案</th><th>专属验证</th><th>遗产内容</th><th></th></tr></thead><tbody>
+    {% for item in people %}<tr><td><strong>{{ item.display_name }}</strong></td><td>{{ {'active': '启用', 'disabled': '停用', 'archived': '归档'}.get(item.person.status, item.person.status) }}</td><td>{{ item.answered_traits }} / {{ item.discovery_question_count }} 已填写</td><td>{{ item.challenge_count }} 个启用</td><td>{{ item.asset_count }} 个启用</td><td><a href="/admin/people/{{ item.person.id }}">查看 / 编辑</a></td></tr>{% endfor %}
   </tbody></table></div>
   {% else %}<p class="muted">暂无人物。请先创建一个人物并补充识别答案。</p>{% endif %}
 </section>
