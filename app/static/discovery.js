@@ -49,6 +49,7 @@
     title.textContent = payload.state === "QUESTION" ? "回答一个问题" : payload.state === "GUESS" ? "我有一个猜测" : payload.state === "UNABLE_TO_IDENTIFY" ? "暂时无法确定身份" : payload.state === "LOCKED" ? "本次识别已锁定" : payload.state === "EXPIRED" ? "本次识别已过期" : payload.state === "VERIFICATION" ? "进入身份验证" : payload.state === "VERIFIED" ? "你的内容已解锁" : "识别完成";
     if (payload.state === "QUESTION" && payload.question) {
       interactive.append(element("p", "question-text", payload.question.text));
+      interactive.append(element("p", "question-helper", "选择最接近真实情况的答案即可，不需要解释原因。"));
       const form = element("form", "answer-form");
       form.dataset.questionId = payload.question.id;
       form.action = `/play/${sessionId}/answer`;
@@ -63,6 +64,7 @@
       interactive.append(form);
     } else if (payload.state === "GUESS" && payload.guess) {
       interactive.append(element("p", "question-text", `我猜你是：${payload.guess.display_name}`));
+      interactive.append(element("p", "question-helper", "请确认这是不是为你准备的内容。"));
       const actions = element("div", "answer-form");
       [[true, "是我"], [false, "不是我"]].forEach(([accepted, label]) => {
         const form = element("form");
@@ -89,6 +91,9 @@
       cover.append(element("p", "signature", `— ${payload.signature || "Still Alive"}`));
       interactive.append(cover, element("p", "lede", "你的内容已解锁。下载链接会在短时间后失效，每个链接只能使用有限次数。"));
       if (payload.assets && payload.assets.length) {
+        const sectionTitle = element("div", "delivery-section-title");
+        sectionTitle.append(element("h2", "", "为你准备的内容"), element("span", "muted", `${payload.assets.length} 项`));
+        interactive.append(sectionTitle);
         const list = element("ul", "asset-list");
         payload.assets.forEach((asset) => {
           const item = element("li");

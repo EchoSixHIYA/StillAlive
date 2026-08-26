@@ -1,30 +1,39 @@
 {% extends "base.html" %}
 
 {% block title %}{% block admin_title %}Still Alive · 管理后台{% endblock %}{% endblock %}
+{% block body_class %}admin-body{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', path='admin.css') }}">
-<div class="admin-layout">
-  <header class="admin-header">
-    <div>
-      <p class="eyebrow">Still Alive</p>
-      <h1>管理后台</h1>
+<div class="admin-app">
+  <aside class="admin-sidebar" aria-label="管理导航">
+    <a class="admin-brand" href="/admin">
+      <span class="brand-mark" aria-hidden="true">✦</span>
+      <span><strong>StillAlive</strong><small>私人交付空间</small></span>
+    </a>
+    <div class="admin-profile"><span class="profile-avatar" aria-hidden="true">{{ admin.username[:1]|upper }}</span><span><strong>{{ admin.username }}</strong><small>安全管理员</small></span></div>
+    <nav class="admin-nav">
+      <p class="nav-label">工作台</p>
+      <a class="{% if request.url.path == '/admin' %}active{% endif %}" href="/admin"><span class="nav-icon" aria-hidden="true">⌂</span>总览</a>
+      <a class="{% if request.url.path.startswith('/admin/people') %}active{% endif %}" href="/admin/people"><span class="nav-icon" aria-hidden="true">♧</span>人物</a>
+      <a class="{% if request.url.path.startswith('/admin/questions') %}active{% endif %}" href="/admin/questions"><span class="nav-icon" aria-hidden="true">▤</span>识别问题</a>
+      <a class="{% if request.url.path.startswith('/admin/identity-integrity') %}active{% endif %}" href="/admin/identity-integrity"><span class="nav-icon" aria-hidden="true">◎</span>身份完整性</a>
+      <p class="nav-label nav-label-spaced">维护</p>
+      <a class="{% if request.url.path.startswith('/admin/setup') %}active{% endif %}" href="/admin/setup"><span class="nav-icon" aria-hidden="true">◌</span>首次配置</a>
+      <a class="{% if request.url.path.startswith('/admin/simulator') %}active{% endif %}" href="/admin/simulator"><span class="nav-icon" aria-hidden="true">◇</span>模拟器</a>
+      <a class="{% if request.url.path.startswith('/admin/audit') %}active{% endif %}" href="/admin/audit"><span class="nav-icon" aria-hidden="true">≡</span>审计日志</a>
+      <a class="{% if request.url.path.startswith('/admin/releases') or request.url.path.startswith('/admin/recovery-key') %}active{% endif %}" href="/admin/releases"><span class="nav-icon" aria-hidden="true">▱</span>离线封存</a>
+    </nav>
+    <div class="sidebar-footer"><span class="secure-dot" aria-hidden="true"></span><span>本地安全模式</span><form action="/admin/logout" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit">退出登录</button></form></div>
+  </aside>
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <div><span class="topbar-kicker">StillAlive / Admin</span><span class="topbar-title">内容管理空间</span></div>
+      <div class="topbar-actions"><a class="button button-secondary button-compact" href="/admin/people/new">＋ 添加人物</a><a class="button button-compact" href="/admin/setup">配置进度</a></div>
+    </header>
+    <div class="admin-content">
+      {% block admin_content %}{% endblock %}
     </div>
-    <form action="/admin/logout" method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button type="submit" class="button button-secondary">退出登录</button>
-    </form>
-  </header>
-  <nav class="admin-nav" aria-label="管理导航">
-    <a href="/admin">总览</a>
-    <a href="/admin/setup">首次配置</a>
-    <a href="/admin/people">人物</a>
-    <a href="/admin/questions">问题</a>
-    <a href="/admin/identity-integrity">身份完整性</a>
-    <a href="/admin/simulator">模拟器</a>
-    <a href="/admin/audit">审计</a>
-    <a href="/admin/releases">封存版本</a>
-  </nav>
-  {% block admin_content %}{% endblock %}
+  </div>
 </div>
 {% endblock %}

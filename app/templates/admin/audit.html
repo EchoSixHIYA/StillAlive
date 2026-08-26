@@ -3,13 +3,7 @@
 {% block admin_title %}Still Alive · 审计{% endblock %}
 
 {% block admin_content %}
-<section class="page-intro"><h2>审计事件</h2><p class="muted">仅显示事件类型、目标和时间，不显示密码、TOTP 或其他秘密原文。</p></section>
-<section class="panel">
-  <form method="get" class="inline-form"><label>事件类型<input name="event_type" value="{{ filters.event_type }}" placeholder="verification.failed"></label><label>Target ID<input name="target" value="{{ filters.target }}"></label><label>Release ID<input name="release" value="{{ filters.release }}"></label><label>开始时间<input name="start" value="{{ filters.start }}" placeholder="2026-01-01T00:00:00"></label><label>结束时间<input name="end" value="{{ filters.end }}" placeholder="2026-12-31T23:59:59"></label><button class="button button-secondary" type="submit">筛选</button></form>
-  {% if events %}
-  <div class="table-wrap"><table><thead><tr><th>时间</th><th>事件</th><th>Actor</th><th>目标</th><th>Metadata</th></tr></thead><tbody>
-    {% for event in events %}<tr><td>{{ event.created_at }}</td><td><code>{{ event.event_type }}</code></td><td>{{ event.actor_type }}</td><td>{{ event.target_type }}</td><td><code>{{ event.metadata_json }}</code></td></tr>{% endfor %}
-  </tbody></table></div>
-  {% else %}<p class="muted">暂无审计事件。</p>{% endif %}
-</section>
+<section class="page-intro"><p class="eyebrow">Operation logs</p><h2>Audit Log</h2><p class="muted">这里只显示事件类型、目标和时间，不显示密码、TOTP 或其他秘密原文。审计记录用于回溯和恢复，不会暴露信件内容。</p></section>
+<section class="panel audit-filters"><div class="panel-heading"><div><h2>筛选事件</h2><span class="muted">支持事件类型、目标和时间范围</span></div></div><form method="get" class="inline-form"><label>事件类型<input name="event_type" value="{{ filters.event_type }}" placeholder="verification.failed"></label><label>Target ID<input name="target" value="{{ filters.target }}"></label><label>Release ID<input name="release" value="{{ filters.release }}"></label><label>开始时间<input name="start" value="{{ filters.start }}" placeholder="2026-01-01T00:00:00"></label><label>结束时间<input name="end" value="{{ filters.end }}" placeholder="2026-12-31T23:59:59"></label><button class="button button-secondary" type="submit">应用筛选</button></form></section>
+<section class="panel audit-panel"><div class="panel-heading"><div><p class="eyebrow">Activity timeline</p><h2>最近记录</h2></div><span class="muted">最多显示 100 条</span></div>{% if events %}<ol class="audit-timeline">{% for event in events %}<li class="audit-event"><span class="audit-dot" aria-hidden="true"></span><div class="audit-event-card"><div class="audit-event-head"><code>{{ event.event_type }}</code><time>{{ event.created_at }}</time></div><p><span>{{ event.actor_type }}</span> 作用于 <span>{{ event.target_type }}</span>{% if event.target_id %} · <code>{{ event.target_id }}</code>{% endif %}</p><details><summary>查看 metadata</summary><pre>{{ event.metadata_json }}</pre></details></div></li>{% endfor %}</ol>{% else %}<p class="muted">暂无审计事件。</p>{% endif %}</section>
 {% endblock %}

@@ -3,13 +3,21 @@
 {% block admin_title %}Still Alive · 人物{% endblock %}
 
 {% block admin_content %}
-<section class="page-intro page-actions"><div><h2>人物管理</h2><p class="muted">显示名称只在管理员后台解密展示。停用或归档会保留数据，便于回滚和审计。</p></div><a class="button" href="/admin/people/new">新建人物</a></section>
-<section class="panel">
+<section class="page-intro page-actions"><div><p class="eyebrow">People / private profiles</p><h2>朋友</h2><p class="muted">人物资料只在管理员后台解密展示。停用或归档会保留数据，便于回滚和审计。</p></div><a class="button" href="/admin/people/new">＋ 新建人物</a></section>
+<section class="list-toolbar"><div class="toolbar-search" aria-hidden="true"><span>⌕</span><span>按姓名或最近更新查找</span></div><span class="muted">{{ people|length }} 位人物</span></section>
+<section class="people-grid">
   {% if people %}
-  <div class="table-wrap"><table><thead><tr><th>人物</th><th>状态</th><th>识别答案</th><th>专属验证</th><th>遗产内容</th><th></th></tr></thead><tbody>
-    {% for item in people %}<tr><td><strong>{{ item.display_name }}</strong></td><td>{{ {'active': '启用', 'disabled': '停用', 'archived': '归档'}.get(item.person.status, item.person.status) }}</td><td>{{ item.answered_traits }} / {{ item.discovery_question_count }} 已填写</td><td>{{ item.challenge_count }} 个启用</td><td>{{ item.asset_count }} 个启用</td><td><a href="/admin/people/{{ item.person.id }}">查看 / 编辑</a></td></tr>{% endfor %}
-  </tbody></table></div>
-  {% else %}<p class="muted">暂无人物。请先创建一个人物并补充识别答案。</p>{% endif %}
+  {% for item in people %}
+  <article class="person-card">
+    <div class="person-card-top"><span class="person-avatar">{{ item.display_name[:1] }}</span><span class="status-chip status-{{ item.person.status }}">{{ {'active': '启用', 'disabled': '停用', 'archived': '归档'}.get(item.person.status, item.person.status) }}</span></div>
+    <h3>{{ item.display_name }}</h3>
+    <p class="muted person-id">安全档案 · {{ item.person.id[:8] }}</p>
+    <div class="person-progress-label"><span>识别资料</span><strong>{{ item.answered_traits }} / {{ item.discovery_question_count }}</strong></div>
+    <div class="progress-track"><span style="width: {{ (item.answered_traits / item.discovery_question_count * 100) if item.discovery_question_count else 0 }}%"></span></div>
+    <div class="person-card-stats"><span>{{ item.challenge_count }} 个专属验证</span><span>{{ item.asset_count }} 个内容</span></div>
+    <div class="person-card-footer"><span class="delivery-state"><i></i>{{ '可交付' if item.person.delivery_enabled else '已撤销交付' }}</span><a href="/admin/people/{{ item.person.id }}">查看档案 →</a></div>
+  </article>
+  {% endfor %}
+  {% else %}<div class="empty-state"><span class="empty-mark">✦</span><h3>还没有人物</h3><p class="muted">先创建一个人物，再为他/她补充识别答案和要交付的内容。</p><a class="button" href="/admin/people/new">新建第一个人物</a></div>{% endif %}
 </section>
 {% endblock %}
-

@@ -3,16 +3,26 @@
 {% block title %}Still Alive · 找回一份只属于你的信{% endblock %}
 
 {% block content %}
-<section class="hero" aria-labelledby="page-title">
-  <p class="eyebrow">Still Alive</p>
-  <h1 id="page-title">找回一份只属于你的信</h1>
-  <p class="lede">通过少量低隐私问题，找回一份为你准备的内容。</p>
-  <p class="delivery-mode"><strong>当前交付模式：</strong>服务启动后即可交付，不等待死亡、倒计时或心跳触发。</p>
-  <form action="/start" method="post" data-start-discovery><button type="submit">开始识别</button></form>
-</section>
+<div class="public-welcome">
+  <header class="public-topbar">
+    <a class="public-brand" href="/" aria-label="StillAlive 首页"><span class="brand-mark" aria-hidden="true">✦</span><span><strong>StillAlive</strong><small>私人交付空间</small></span></a>
+    <span class="public-topbar-note">A quiet place for what matters</span>
+  </header>
+  <div class="public-stage">
+    <section class="public-hero-copy" aria-labelledby="page-title">
+      <p class="eyebrow">A letter, kept for you</p>
+      <h1 id="page-title">一封来自远方的信</h1>
+      <p class="lede">有些话不需要被大声说出，只需要在正确的人到来时，被温柔地交到手里。</p>
+      <div class="public-actions">
+        <form action="/start" method="post" data-start-discovery><button type="submit">开始识别 <span aria-hidden="true">→</span></button></form>
+        <span class="muted">确认身份后，内容才会打开</span>
+      </div>
+      <p class="delivery-mode"><strong>当前交付方式</strong><br>服务启动后即可交付，不等待死亡、倒计时或心跳触发。</p>
+    </section>
+    <div class="letter-art" aria-hidden="true"><div class="envelope"><span class="envelope-mark">✦</span></div></div>
+  </div>
+  <div class="public-footer"><span>StillAlive / private delivery</span><span>识别过程不展示人物名单、评分或密钥</span></div>
+</div>
 <script src="{{ url_for('static', path='start.js') }}" defer></script>
-<section class="notice" aria-label="隐私提示">
-  <strong>隐私提示</strong>
-  <p>识别过程中不展示人物名单、候选评分、验证答案或任何密钥。你可以随时停止。验证通过后，下载链接只在短时间内有效，并按一次性授权规则消耗。</p>
-</section>
+<section class="notice" aria-label="隐私提示"><strong>隐私提示</strong><p>识别过程中不展示人物名单、候选评分、验证答案或任何密钥。你可以随时停止。验证通过后，下载链接只在短时间内有效，并按一次性授权规则消耗。</p></section>
 {% endblock %}

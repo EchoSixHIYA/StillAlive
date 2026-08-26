@@ -3,14 +3,11 @@
 {% block admin_title %}Still Alive · {{ '编辑人物' if person else '新建人物' }}{% endblock %}
 
 {% block admin_content %}
-<section class="page-intro"><h2>{{ '编辑人物' if person else '新建人物' }}</h2><p class="muted">人物显示名称会在数据库中加密保存；修改名称会让身份完整性结果变为待重算。</p></section>
-<section class="panel form-panel">
-  <form action="{{ '/admin/people/' ~ person.id if person else '/admin/people' }}" method="post" class="stacked-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <label>显示名称<input name="display_name" maxlength="200" required value="{{ display_name }}"></label>
-    <label>状态<select name="status"><option value="active"{% if status == "active" %} selected{% endif %}>启用</option><option value="disabled"{% if status == "disabled" %} selected{% endif %}>停用</option><option value="archived"{% if status == "archived" %} selected{% endif %}>归档</option></select></label>
-    <div class="form-actions"><button class="button" type="submit">保存人物</button><a href="{{ '/admin/people/' ~ person.id if person else '/admin/people' }}">取消</a></div>
-  </form>
-</section>
+<section class="page-intro page-actions"><div><p class="eyebrow">People / profile</p><h2>{{ '编辑人物' if person else 'Add a close friend' }}</h2><p class="muted">先建立一个清晰的称呼，之后可以继续配置身份答案、验证问题和遗产内容。</p></div><a class="button button-secondary" href="{{ '/admin/people/' ~ person.id if person else '/admin/people' }}">取消</a></section>
+<form action="{{ '/admin/people/' ~ person.id if person else '/admin/people' }}" method="post" class="person-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <section class="panel form-panel"><div class="panel-heading"><div><p class="eyebrow">Basic information</p><h2>基本信息</h2></div><span class="form-step">01</span></div><label>显示名称<span class="field-hint">这个名称只会在后台和交付流程内部使用</span><input name="display_name" maxlength="200" required value="{{ display_name }}" placeholder="例如：林晓、我的姐姐"></label></section>
+  <section class="panel form-panel"><div class="panel-heading"><div><p class="eyebrow">Profile state</p><h2>档案状态</h2></div><span class="form-step">02</span></div><label>当前状态<span class="field-hint">停用会暂停识别，归档会从日常列表中隐藏；资料仍可恢复</span><select name="status"><option value="active"{% if status == "active" %} selected{% endif %}>启用 · 可参与交付</option><option value="disabled"{% if status == "disabled" %} selected{% endif %}>停用 · 暂停交付</option><option value="archived"{% if status == "archived" %} selected{% endif %}>归档 · 隐藏但保留</option></select></label></section>
+  <div class="form-actions form-actions-bottom"><button class="button" type="submit">保存人物</button><a href="{{ '/admin/people/' ~ person.id if person else '/admin/people' }}">返回人物列表</a></div>
+</form>
 {% endblock %}
-

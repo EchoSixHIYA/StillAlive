@@ -3,13 +3,12 @@
 {% block admin_title %}Still Alive · 问题{% endblock %}
 
 {% block admin_content %}
-<section class="page-intro page-actions"><div><h2>识别问题 / Discovery Question</h2><p class="muted">L4 仅用于专属验证，不能作为公开识别问题。停用问题会保留已有答案。</p></div><a class="button" href="/admin/questions/new">新建问题</a></section>
-<section class="panel">
+<section class="page-intro page-actions"><div><p class="eyebrow">Discovery questions</p><h2>识别问题</h2><p class="muted">用低隐私问题确认来访者与人物的关系。L4 仅用于专属验证，不能作为公开识别问题。</p></div><a class="button" href="/admin/questions/new">＋ 新建问题</a></section>
+<section class="question-grid">
   {% if questions %}
-  <div class="table-wrap"><table><thead><tr><th>问题</th><th>隐私级别</th><th>权重</th><th>分类</th><th>覆盖人数</th><th>状态</th><th></th></tr></thead><tbody>
-    {% for item in questions %}<tr><td>{{ item.text }}</td><td>{{ item.question.privacy_level }}</td><td>{{ item.question.weight }}</td><td>{{ item.question.facet_tag or '—' }}</td><td>{{ item.coverage }}</td><td>{% if item.question.active %}启用{% else %}停用{% endif %}</td><td><a href="/admin/questions/{{ item.question.id }}/edit">编辑</a></td></tr>{% endfor %}
-  </tbody></table></div>
-  {% else %}<p class="muted">暂无问题。</p>{% endif %}
+  {% for item in questions %}
+  <article class="question-card-admin"><div class="question-card-meta"><span class="status-chip {{ 'status-active' if item.question.active else 'status-disabled' }}">{{ '启用' if item.question.active else '停用' }}</span><span>{{ item.question.privacy_level }}</span></div><p class="admin-question-text">“{{ item.text }}”</p><div class="question-card-bottom"><span>{{ item.coverage }} 位人物覆盖</span><span>权重 {{ item.question.weight }}</span></div><div class="question-card-footer"><span>{{ item.question.facet_tag or '未分类' }}</span><a href="/admin/questions/{{ item.question.id }}/edit">编辑 →</a></div></article>
+  {% endfor %}
+  {% else %}<div class="empty-state"><span class="empty-mark">?</span><h3>还没有识别问题</h3><p class="muted">创建一道低隐私问题，开始建立可区分的人物档案。</p><a class="button" href="/admin/questions/new">创建第一道问题</a></div>{% endif %}
 </section>
 {% endblock %}
-

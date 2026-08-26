@@ -3,10 +3,11 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f8f9fa">
     <title>{% block title %}Still Alive{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='site.css') }}">
   </head>
-  <body>
+  <body class="{% block body_class %}site-body{% endblock %}">
     <main class="page-shell">
       {% block content %}{% endblock %}
     </main>
