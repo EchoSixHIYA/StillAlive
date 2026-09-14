@@ -4,10 +4,11 @@
 
 {% block admin_content %}
 <section class="page-intro page-actions"><div><p class="eyebrow">Discovery questions</p><h2>识别问题</h2><p class="muted">用低隐私问题确认来访者与人物的关系。L4 仅用于专属验证，不能作为公开识别问题。</p></div><a class="button" href="/admin/questions/new">＋ 新建问题</a></section>
+{% if created %}<div class="flash-success" role="status"><strong>问题已添加</strong><span>现在进入任意一个人物档案，为这个人单独填写答案。</span></div>{% endif %}
 <section class="question-grid">
   {% if questions %}
   {% for item in questions %}
-  <article class="question-card-admin"><div class="question-card-meta"><span class="status-chip {{ 'status-active' if item.question.active else 'status-disabled' }}">{{ '启用' if item.question.active else '停用' }}</span><span>{{ item.question.privacy_level }}</span></div><p class="admin-question-text">“{{ item.text }}”</p><div class="question-card-bottom"><span>{{ item.coverage }} 位人物覆盖</span><span>权重 {{ item.question.weight }}</span></div><div class="question-card-footer"><span>{{ item.question.facet_tag or '未分类' }}</span><a href="/admin/questions/{{ item.question.id }}/edit">编辑 →</a></div></article>
+  <article class="question-card-admin"><div class="question-card-meta"><span class="status-chip {{ 'status-active' if item.question.active else 'status-disabled' }}">{{ '启用' if item.question.active else '停用' }}</span><span>{{ {"L0_PUBLIC": "公开常识", "L1_RELATION": "关系信息", "L2_PRIVATE": "私密信息", "L3_SENSITIVE": "敏感信息", "L4_VERIFICATION_ONLY": "仅专属验证"}.get(item.question.privacy_level, item.question.privacy_level) }}</span><span class="technical-identifiers">{{ item.question.privacy_level }}</span></div><p class="admin-question-text">“{{ item.text }}”</p><div class="question-card-bottom"><span>{{ item.coverage }} 位人物覆盖</span><span>权重 {{ item.question.weight }}</span></div><div class="question-card-footer"><span>{{ item.question.facet_tag or '未分类' }}</span><a href="/admin/questions/{{ item.question.id }}/edit">编辑 →</a></div></article>
   {% endfor %}
   {% else %}<div class="empty-state"><span class="empty-mark">?</span><h3>还没有识别问题</h3><p class="muted">创建一道低隐私问题，开始建立可区分的人物档案。</p><a class="button" href="/admin/questions/new">创建第一道问题</a></div>{% endif %}
 </section>

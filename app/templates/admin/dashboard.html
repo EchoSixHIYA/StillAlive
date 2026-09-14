@@ -6,10 +6,10 @@
 <section class="page-intro dashboard-intro">
   <p class="eyebrow">Good to see you, {{ admin.username }}</p>
   <h2>你好，准备好今天整理一些回忆了吗？</h2>
-  <p class="muted"><span class="section-kicker">系统总览</span>　当前服务启动后即可提供定向交付；它不会等待死亡、倒计时或 Heartbeat。下面是内容准备、身份完整性和封存状态。</p>
+  <p class="muted"><span class="section-kicker">系统总览</span>　当前服务启动后即可交付；先创建一个朋友，系统会带你完成后面的设置。</p>
 </section>
 <section class="panel setup-banner {% if setup.all_required_done %}setup-banner-ready{% endif %}">
-  <div><p class="eyebrow">First-use setup</p><h2>{% if setup.all_required_done %}基础配置已完成{% else %}还剩 {{ setup.total - setup.completed }} 步需要处理{% endif %}</h2><p class="muted">推荐顺序：人物 → 识别问题 → 人物答案 → 专属验证 → 遗产内容 → 前台试跑 → Recovery Key → 身份完整性 → 离线封存包。</p></div>
+  <div><p class="eyebrow">Start here</p><h2>{% if setup.all_required_done %}基础配置已完成{% else %}还剩 {{ setup.total - setup.completed }} 步需要处理{% endif %}</h2><p class="muted">按向导一步一步完成，页面会直接告诉你下一步该去哪里。</p></div>
   <a class="button{% if setup.all_required_done %} button-secondary{% endif %}" href="/admin/setup">{{ "查看配置结果" if setup.all_required_done else "开始配置向导" }}</a>
 </section>
 <div class="metric-grid dashboard-metrics">

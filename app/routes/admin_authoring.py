@@ -22,6 +22,7 @@ from app.services.data_lifecycle import permanently_delete_asset, permanently_de
 from app.services.delivery import DELIVERY_CONTENT_TYPE_LABELS, DELIVERY_CONTENT_TYPES, DELIVERY_THEMES, delivery_profile_values, save_delivery_profile
 from app.services.identity_integrity import mark_latest_stale, recompute_incremental
 from app.services.verification import create_challenge, decrypt_prompt
+from app.services.question_templates import QUESTION_STARTERS, get_question_starter
 from app.services.metadata import (
     decrypt_person_name,
     decrypt_question_text,
@@ -454,7 +455,7 @@ def person_delete(request: Request, person_id: str, confirm_text: str = Form(...
 
 
 @router.get("/questions", response_class=HTMLResponse)
-def questions_list(request: Request, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
+def questions_list(request: Request, created: str | None = None, admin: AdminUser = Depends(require_admin)) -> HTMLResponse:
     with request.app.state.session_factory() as db:
         questions = db.scalars(select(Question).order_by(Question.created_at.desc())).all()
         views = []
@@ -464,7 +465,7 @@ def questions_list(request: Request, admin: AdminUser = Depends(require_admin)) 
     return templates.TemplateResponse(
         request=request,
         name="admin/questions_list.html",
-        context={"admin": admin, "csrf_token": _csrf_token(request), "questions": views},
+        context={"admin": admin, "csrf_token": _csrf_token(request), "questions": views, "question_starters": QUESTION_STARTERS, "created": created},
     )
 
 
@@ -473,8 +474,42 @@ def question_new(request: Request, admin: AdminUser = Depends(require_admin)) ->
     return templates.TemplateResponse(
         request=request,
         name="admin/question_form.html",
-        context={"admin": admin, "csrf_token": _csrf_token(request), "question": None, "text": "", "privacy_level": "L1_RELATION", "answer_scale": "five_point", "weight": "1.0", "facet_tag": "", "active": True, "error": None},
+        context={"admin": admin, "csrf_token": _csrf_token(request), "question": None, "text": "", "privacy_level": "L1_RELATION", "answer_scale": "five_point", "weight": "1.0", "facet_tag": "", "active": True, "error": None, "question_starters": QUESTION_STARTERS},
     )
+
+
+@router.post("/questions/from-template")
+def question_from_template(
+    request: Request,
+    template_key: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: AdminUser = Depends(require_admin),
+) -> RedirectResponse:
+    """Create one selected starter question without collecting personal data."""
+
+    _require_csrf(request, csrf_token)
+    starter = get_question_starter(template_key)
+    if starter is None:
+        raise HTTPException(status_code=400, detail="unknown question starter")
+    nonce, ciphertext = encrypt_question_text(starter["text"], request.app.state.settings.master_key_bytes)
+    with request.app.state.session_factory() as db:
+        mark_latest_stale(db, actor_type="admin", actor_id=admin.id, reason="question.created")
+        question = Question(
+            text_ciphertext=ciphertext,
+            text_nonce=nonce,
+            privacy_level=starter["privacy_level"],
+            answer_scale="five_point",
+            weight=1.0,
+            facet_tag=starter["facet_tag"],
+            active=True,
+        )
+        db.add(question)
+        db.flush()
+        record_audit(db, actor_type="admin", event_type="question.created", actor_id=admin.id, target_type="question", target_id=question.id, metadata={"source": "starter_template", "template_key": template_key})
+        record_audit(db, actor_type="admin", event_type="identity_integrity.stale", actor_id=admin.id, target_type="question", target_id=question.id, metadata={"reason": "question.created"})
+        db.commit()
+    recompute_incremental(request.app.state.db_engine, request.app.state.settings)
+    return RedirectResponse("/admin/questions?created=1", status_code=303)
 
 
 @router.post("/questions")

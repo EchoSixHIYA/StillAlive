@@ -99,12 +99,12 @@ def build_setup_checklist(db: Session) -> dict[str, object]:
     ready_releases = int(db.scalar(select(func.count(SealedRelease.id)).where(SealedRelease.status == "ready")) or 0)
 
     items = [
-        _item("people", "建立人物", f"已建立 {len(active_people)} 个可交付人物。", "管理人物", "/admin/people", bool(active_people)),
-        _item("questions", "建立识别问题", f"已有 {len(active_questions)} 个可用于公开识别的问题。", "管理问题", "/admin/questions", bool(active_questions)),
+        _item("people", "建立人物", f"已建立 {len(active_people)} 个可交付人物。" if active_people else "先添加至少 1 位朋友。", "管理人物" if active_people else "新建人物", "/admin/people" if active_people else "/admin/people/new", bool(active_people)),
+        _item("questions", "建立识别问题", f"已有 {len(active_questions)} 个可用于公开识别的问题。" if active_questions else "可直接选择安全模板，不必从空白开始。", "管理问题" if active_questions else "选择起始问题", "/admin/questions" if active_questions else "/admin/questions/new", bool(active_questions)),
         _item(
             "traits",
             "补齐识别特征",
-            "已补齐全部人物 × 问题答案。" if active_people and active_questions and missing_traits == 0 else f"还有 {missing_traits} 项人物答案待填写。",
+            "每位朋友的问题答案都已填写。" if active_people and active_questions and missing_traits == 0 else f"还有 {missing_traits} 项人物答案待填写。",
             "去补充答案",
             f"/admin/people/{active_people[0].id}" if active_people else "/admin/people/new",
             bool(active_people and active_questions and missing_traits == 0),
@@ -112,7 +112,7 @@ def build_setup_checklist(db: Session) -> dict[str, object]:
         _item(
             "challenges",
             "配置专属验证",
-            "每个人物都有至少一个启用的专属验证问题。" if active_people and not missing_challenges else f"还有 {len(missing_challenges)} 个人物没有专属验证问题。",
+            "每位朋友都有至少 1 道专属验证。" if active_people and not missing_challenges else f"还有 {len(missing_challenges)} 个人物没有专属验证问题。",
             "去配置验证",
             f"/admin/people/{missing_challenges[0].id if missing_challenges else (active_people[0].id if active_people else '')}#verification" if active_people else "/admin/people/new",
             bool(active_people and not missing_challenges),
@@ -120,22 +120,22 @@ def build_setup_checklist(db: Session) -> dict[str, object]:
         _item(
             "assets",
             "上传遗产内容",
-            "每个人物都有至少一份启用的遗产内容。" if active_people and not missing_assets else f"还有 {len(missing_assets)} 个人物没有可交付内容。",
+            "每位朋友都有至少 1 份可交付内容。" if active_people and not missing_assets else f"还有 {len(missing_assets)} 个人物没有可交付内容。",
             "去上传内容",
             f"/admin/people/{missing_assets[0].id if missing_assets else (active_people[0].id if active_people else '')}#assets" if active_people else "/admin/people/new",
             bool(active_people and not missing_assets),
         ),
-        _item("frontend", "用朋友视角试跑", "这是人工验收步骤，不会改变线上数据。", "打开前台", "/", True, required=False),
-        _item("recovery", "保存 Recovery Key", "Recovery Key 只应离线保存，不要放入代码库。", "管理 Recovery Key", "/admin/recovery-key", recovery_ready),
+        _item("frontend", "用朋友视角试跑", "检查朋友实际看到的识别和领取流程。", "打开前台", "/", True, required=False),
+        _item("recovery", "保存 Recovery Key", "把恢复密钥保存在独立的离线位置。", "管理 Recovery Key", "/admin/recovery-key", recovery_ready),
         _item(
             "integrity",
             "通过身份完整性检查",
-            "最新检查已通过，没有阻塞或提醒人物对。" if integrity_ready else "需要重新计算，并按待办消除人物混淆风险。",
+            "人物之间已经足够容易区分。" if integrity_ready else "按待办补充答案，减少人物混淆。",
             "查看并处理待办",
             "/admin/identity-integrity",
             integrity_ready,
         ),
-        _item("release", "创建离线封存包", f"已有 {ready_releases} 个可恢复的离线封存包。", "管理离线封存包", "/admin/releases", ready_releases > 0),
+        _item("release", "创建离线封存包", f"已有 {ready_releases} 个可恢复版本。" if ready_releases else "全部检查通过后创建 1 个可恢复版本。", "管理离线封存包", "/admin/releases", ready_releases > 0),
     ]
     required_items = [item for item in items if item["required"]]
     completed_required = sum(bool(item["done"]) for item in required_items)

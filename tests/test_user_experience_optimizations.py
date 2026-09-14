@@ -58,6 +58,26 @@ def test_setup_wizard_exposes_reported_first_use_sequence(client: TestClient) ->
     assert "启动后即可交付" in page.text
 
 
+def test_starter_questions_are_visible_and_optional(client: TestClient) -> None:
+    _login(client)
+    new_question = client.get("/admin/questions/new")
+    assert new_question.status_code == 200
+    assert "从一个安全模板开始" in new_question.text
+    assert "我们是否一起参加过线下活动？" in new_question.text
+    assert "之后再为每个人单独填写答案" in new_question.text
+
+    created = client.post(
+        "/admin/questions/from-template",
+        data={"template_key": "shared_activity", "csrf_token": _csrf(client)},
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    assert created.headers["location"] == "/admin/questions?created=1"
+    with client.app.state.session_factory() as db:
+        question = db.scalar(select(Question).where(Question.facet_tag == "共同经历"))
+    assert question is not None
+
+
 def test_person_and_asset_labels_can_be_edited_without_replacing_ciphertext(client: TestClient) -> None:
     _login(client)
     person_id = _create_person(client, "待修改人物")
