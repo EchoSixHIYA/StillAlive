@@ -17,6 +17,7 @@ from app.models.identity import Person, Question, TraitAnswer
 from app.models.grant import DownloadGrant
 from app.models.verification import VerificationChallenge
 from app.services.grants import create_grant
+from app.services.metadata import decrypt_question_text
 
 
 LOGIN_CSRF_PATTERN = re.compile(r'name="csrf_token" value="([^"]+)"')
@@ -63,7 +64,8 @@ def test_starter_questions_are_visible_and_optional(client: TestClient) -> None:
     new_question = client.get("/admin/questions/new")
     assert new_question.status_code == 200
     assert "从一个安全模板开始" in new_question.text
-    assert "我们是否一起参加过线下活动？" in new_question.text
+    assert "我们一起参加过线下活动吗？" in new_question.text
+    assert "是 / 可能是 / 不知道 / 可能不是 / 不是" in new_question.text
     assert "之后再为每个人单独填写答案" in new_question.text
 
     created = client.post(
@@ -76,6 +78,18 @@ def test_starter_questions_are_visible_and_optional(client: TestClient) -> None:
     with client.app.state.session_factory() as db:
         question = db.scalar(select(Question).where(Question.facet_tag == "共同经历"))
     assert question is not None
+    assert decrypt_question_text(question.text_ciphertext, question.text_nonce, client.app.state.settings.master_key_bytes) == "我们一起参加过线下活动吗？"
+    assert question.answer_scale == "five_point"
+    person_id = _create_person(client, "起始题人物")
+    saved = client.post(
+        f"/admin/people/{person_id}/traits",
+        data={f"answer_choice_{question.id}": "probably_yes", f"confidence_level_{question.id}": "likely", "csrf_token": _csrf(client)},
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    detail = client.get(f"/admin/people/{person_id}")
+    assert "我们一起参加过线下活动吗？" in detail.text
+    assert "可能是" in detail.text
 
 
 def test_person_and_asset_labels_can_be_edited_without_replacing_ciphertext(client: TestClient) -> None:
@@ -147,6 +161,9 @@ def test_public_page_explains_immediate_delivery_and_flow_progress(client: TestC
     play = client.get(started.headers["location"])
     assert "flow-progress" in play.text
     assert "交付" in play.text
+    assert "可能是" in play.text
+    assert "可能不是" in play.text
+    assert "大概是" not in play.text
 
 
 def test_release_page_turns_failed_gates_into_actions(client: TestClient) -> None:
@@ -174,6 +191,8 @@ def test_normal_trait_mode_maps_plain_language_to_identity_values(client: TestCl
     assert response.status_code == 303
     detail = client.get(f"/admin/people/{person_id}")
     assert "普通模式：用自然语言选择" in detail.text
+    assert "可能不是" in detail.text
+    assert "大概不是" not in detail.text
     assert "高级设置（数字字段）" in detail.text
     with client.app.state.session_factory() as db:
         answer = db.get(TraitAnswer, (person_id, question.id))

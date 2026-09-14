@@ -8,9 +8,9 @@
   const sessionId = state.dataset.sessionId;
   const labels = [
     ["yes", "是"],
-    ["probably_yes", "大概是"],
+    ["probably_yes", "可能是"],
     ["unknown", "不知道"],
-    ["probably_no", "大概不是"],
+    ["probably_no", "可能不是"],
     ["no", "不是"],
   ];
 
